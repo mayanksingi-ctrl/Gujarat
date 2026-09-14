@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gujarat District Summary</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="dashboard_logic.js"></script>
+<style>
+  :root {
+    --ink: #14213D;
+    --ink-soft: #4A5568;
+    --line: #E2E5EA;
+    --paper: #FCFCFB;
+    --panel: #FFFFFF;
+    --accent: #2E5A8C;
+    --red: #C13B3B;
+    --amber: #C88A1E;
+    --green: #2F8552;
+    --grey: #8A8F98;
+    --focus-ring: #2E5A8C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  h2 { font-size: 14px; margin: 0 0 10px; font-weight: 650; color: var(--accent); }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 30;
+  }
+  #status { font-size: 12px; color: var(--ink-soft); }
+  #status.error { color: var(--red); font-weight: 600; }
+
+  .filters {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 24px;
+    display: flex; flex-wrap: wrap; gap: 14px;
+    position: sticky; top: 57px; z-index: 29;
+  }
+  .filter-item { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
+  .filter-item label { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
+  .filter-item select, .filter-item button {
+    font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
+    background: #fff; color: var(--ink); cursor: pointer;
+  }
+  .filter-item select:focus, .filter-item button:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+  #localityBtn { min-width: 180px; text-align: left; position: relative; }
+  #localityBtn .count-badge {
+    background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px;
+    font-size: 11px; margin-left: 6px;
+  }
+  #localityPanel {
+    display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(20,33,61,0.12); padding: 10px; z-index: 40;
+    width: 340px; max-height: 360px; overflow-y: auto;
+  }
+  #localityPanel.open { display: block; }
+  #localityPanel .hint { font-size: 11px; color: var(--ink-soft); margin-bottom: 8px; }
+  .loc-row { display: flex; align-items: center; gap: 8px; padding: 3px 2px; font-size: 13px; }
+  .loc-row span.name { flex: 1; }
+  .loc-row span.qty { color: var(--ink-soft); font-size: 12px; }
+  #localityClear { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 6px; }
+
+  main { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
+  .showing { font-size: 13px; color: var(--accent); font-style: italic; margin-bottom: 16px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px; margin-bottom: 20px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: #F4F6F9; text-align: right; padding: 6px 8px;
+    border-bottom: 2px solid var(--line); font-weight: 650; color: var(--ink-soft); font-size: 11px;
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  tbody td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  tbody td:first-child { text-align: left; font-weight: 550; }
+  tbody tr:hover { background: #F8FAFC; }
+  tfoot td { padding: 6px 8px; font-weight: 700; border-top: 2px solid var(--ink); text-align: right; }
+  tfoot td:first-child { text-align: left; }
+  .scroll-table { max-height: 420px; overflow-y: auto; }
+
+  .pct-red { color: var(--red); font-weight: 650; }
+  .pct-amber { color: var(--amber); font-weight: 650; }
+  .pct-green { color: var(--green); font-weight: 650; }
+  .pct-grey { color: var(--grey); }
+
+  .kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .label { color: var(--ink-soft); }
+  .kv .value { font-weight: 650; }
+
+  .map-frame { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; height: 480px; }
+  .map-frame iframe { width: 100%; height: 100%; border: none; }
+  .map-note { font-size: 11px; color: var(--ink-soft); margin-top: 8px; }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: var(--paper); z-index: 100;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+  }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent);
+             border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loadingText">Loading Gujarat_Summary_Data.xlsx&hellip;</div>
+</div>
+
+<header>
+  <h1>Gujarat District Summary</h1>
+  <div id="status"></div>
+</header>
+
+<div class="filters" id="filterBar"></div>
+
+<main>
+  <div class="showing" id="showingLine"></div>
+
+  <div class="card">
+    <h2 id="revenueTitle">Revenue table</h2>
+    <div class="scroll-table">
+      <table id="districtTable"><thead></thead><tbody></tbody><tfoot></tfoot></table>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>BA Segment process-input compliance</h2>
+      <div class="scroll-table">
+        <table id="segmentTable"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Live diagnostics</h2>
+      <div id="focusDep"></div>
+      <div style="height:14px"></div>
+      <div id="kopDep"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Where the listing hotspots are</h2>
+    <div class="map-frame"><iframe src="Gujarat_Hotspot_Map.html" title="Gujarat hotspot map"></iframe></div>
+    <div class="map-note">Interactive map — pan, zoom, and toggle layers. Needs an internet connection to load street tiles.</div>
+  </div>
+</main>
+
+<script>
+const DATA_FILE = 'Gujarat_Summary_Data.xlsx';
+const SHEET_NAME = 'Detailed Sheet';
+const HEADER_ROW = 2; // 1-indexed row holding column titles
+
+let ROWS = [];
+let LOCALITIES = []; // [{name, qty}] sorted desc, recomputed per Locality Category
+const state = {
+  zone: '(All)', baType: '(All)', segment: '(All)', loyalty: '(All)',
+  focusAccount: '(All)', kopAccount: '(All)', localityCategory: '(All)',
+  selectedLocalities: [], focusCoverage: '(All)',
+};
+
+const LISTS = {
+  zone: ['(All)', 'North Zone', 'Central Zone', 'South Zone', 'West Zone'],
+  baType: ['(All)', 'OEM', 'Project', 'Retail'],
+  loyalty: ['(All)', 'High Loyalty', 'Medium Loyalty', 'Low Loyalty', '(Blank)'],
+  yesNo: ['(All)', 'Yes', 'No'],
+  localityCategory: ['(All)', 'Hotspot - High value', 'Hotspot - Medium value', 'Hotspot - Low value',
+                      'Area of Interest', 'Not classified'],
+  coverage: ['(All)', 'Yes', 'No', 'n/a'],
+};
+const SEGMENTS = ['(All)', 'Architect', 'Builder', 'Carpenter', 'Company', 'Door', 'Home Furniture',
+                   'Kitchen', 'Office Furniture', 'Project/Contractor', 'R1', 'R2', 'S1', 'S2'];
+
+async function init() {
+  try {
+    setLoading('Fetching ' + DATA_FILE + '\u2026');
+    const buf = await fetchArrayBuffer(DATA_FILE);
+    setLoading('Parsing workbook\u2026');
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[SHEET_NAME];
+    if (!ws) throw new Error('Sheet "' + SHEET_NAME + '" not found in ' + DATA_FILE);
+    const raw = XLSX.utils.sheet_to_json(ws, { range: HEADER_ROW - 1, defval: null });
+    ROWS = prepareRows(raw);
+    document.getElementById('status').textContent = ROWS.length.toLocaleString() + ' accounts loaded';
+    buildFilterBar();
+    refreshLocalityPanel();
+    render();
+    document.getElementById('loadingOverlay').style.display = 'none';
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function fetchArrayBuffer(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error('Could not fetch ' + path + ' (HTTP ' + res.status + '). ' +
+    'If you opened this file directly (file://), your browser may block local file reads \u2014 ' +
+    'see the README for how to run a one-line local server instead.');
+  return await res.arrayBuffer();
+}
+
+function showError(err) {
+  const el = document.getElementById('loadingText');
+  el.innerHTML = '<strong>Could not load the dashboard.</strong><br><br>' + escapeHtml(err.message);
+  document.getElementById('status').textContent = 'Load failed';
+  document.getElementById('status').className = 'error';
+}
+
+function setLoading(msg) { document.getElementById('loadingText').textContent = msg; }
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ---------------- filter bar ----------------
+function buildFilterBar() {
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '';
+  bar.appendChild(makeSelect('zone', 'Zone', LISTS.zone));
+  bar.appendChild(makeSelect('baType', 'BA Type', LISTS.baType));
+  bar.appendChild(makeSelect('segment', 'BA Segment', SEGMENTS));
+  bar.appendChild(makeSelect('loyalty', 'Loyalty', LISTS.loyalty));
+  bar.appendChild(makeSelect('focusAccount', 'Focus Account', LISTS.yesNo));
+  bar.appendChild(makeSelect('kopAccount', 'KOP Account', LISTS.yesNo));
+  bar.appendChild(makeSelect('localityCategory', 'Locality Category', LISTS.localityCategory));
+  bar.appendChild(makeLocalityPicker());
+  bar.appendChild(makeSelect('focusCoverage', 'Focus Coverage', LISTS.coverage));
+}
+
+function makeSelect(key, label, options) {
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-item';
+  const lab = document.createElement('label'); lab.textContent = label;
+  const sel = document.createElement('select');
+  sel.setAttribute('aria-label', label);
+  options.forEach(o => {
+    const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+    if (state[key] === o) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    state[key] = sel.value;
+    if (key === 'localityCategory') { state.selectedLocalities = []; refreshLocalityPanel(); }
+    render();
+  });
+  wrap.appendChild(lab); wrap.appendChild(sel);
+  return wrap;
+}
+
+function makeLocalityPicker() {
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-item';
+  wrap.style.position = 'relative';
+  const lab = document.createElement('label'); lab.textContent = 'Locality';
+  const btn = document.createElement('button');
+  btn.id = 'localityBtn';
+  btn.type = 'button';
+  btn.textContent = 'All in category';
+  const panel = document.createElement('div');
+  panel.id = 'localityPanel';
+  btn.addEventListener('click', () => panel.classList.toggle('open'));
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) panel.classList.remove('open');
+  });
+  wrap.appendChild(lab); wrap.appendChild(btn); wrap.appendChild(panel);
+  return wrap;
+}
+
+function refreshLocalityPanel() {
+  const panel = document.getElementById('localityPanel');
+  const btn = document.getElementById('localityBtn');
+  if (!panel) return;
+  const base = state.localityCategory === '(All)'
+    ? ROWS
+    : ROWS.filter(r => r.localityCategory === state.localityCategory);
+  const byCluster = new Map();
+  for (const r of base) {
+    const ys = [r.y1, r.y2, r.y3, r.y4].filter(y => y !== null);
+    const sum = ys.reduce((a, b) => a + b, 0);
+    byCluster.set(r.cluster, (byCluster.get(r.cluster) || 0) + sum);
+  }
+  LOCALITIES = [...byCluster.entries()].map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty).slice(0, 40);
+
+  panel.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = 'Tick one or more to restrict the revenue table. Leave all unticked for everything in "' +
+    state.localityCategory + '".';
+  panel.appendChild(hint);
+  const clearBtn = document.createElement('button');
+  clearBtn.id = 'localityClear'; clearBtn.textContent = 'Clear selection';
+  clearBtn.addEventListener('click', () => { state.selectedLocalities = []; refreshLocalityPanel(); render(); });
+  panel.appendChild(clearBtn);
+
+  LOCALITIES.forEach(loc => {
+    const row = document.createElement('label');
+    row.className = 'loc-row';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = state.selectedLocalities.includes(loc.name);
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.selectedLocalities.push(loc.name);
+      else state.selectedLocalities = state.selectedLocalities.filter(n => n !== loc.name);
+      updateLocalityButton();
+      render();
+    });
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = loc.name;
+    const qty = document.createElement('span'); qty.className = 'qty num'; qty.textContent = loc.qty.toLocaleString();
+    row.appendChild(cb); row.appendChild(name); row.appendChild(qty);
+    panel.appendChild(row);
+  });
+  updateLocalityButton();
+}
+
+function updateLocalityButton() {
+  const btn = document.getElementById('localityBtn');
+  if (!btn) return;
+  const n = state.selectedLocalities.length;
+  btn.innerHTML = (n === 0 ? 'All in category' : n + ' selected') +
+    (n > 0 ? '<span class="count-badge">' + n + '</span>' : '');
+}
+
+// ---------------- render ----------------
+function render() {
+  const filtered = applyFilters(ROWS, state);
+  document.getElementById('showingLine').textContent = 'Showing: ' + describeState();
+
+  const dt = districtTable(filtered);
+  const gt = grandTotal(dt);
+  renderDistrictTable(dt, gt);
+
+  const seg = segmentTable(filtered);
+  renderSegmentTable(seg);
+
+  renderDependence('focusDep', 'Focus account dependence', dependenceBlock(filtered, 'isFocus'), 'Focus', 'Other');
+  renderDependence('kopDep', 'KOP account dependence', dependenceBlock(filtered, 'isKop'), 'KOP', 'Other');
+}
+
+function describeState() {
+  const parts = [];
+  Object.entries(state).forEach(([k, v]) => {
+    if (k === 'selectedLocalities') { if (v.length) parts.push(v.length + ' localities'); return; }
+    if (v !== '(All)') parts.push(v);
+  });
+  return parts.length ? parts.join(' \u00b7 ') : 'everything (no filters applied)';
+}
+
+function fmt(n) { return n === null || n === undefined ? '\u2013' : Math.round(n).toLocaleString(); }
+function fmtPct(p) { return p === null || p === undefined ? '\u2013' : (p * 100).toFixed(1) + '%'; }
+function pctClass(p, redBelow, amberBelow) {
+  if (p === null || p === undefined) return 'pct-grey';
+  if (p < redBelow) return 'pct-red';
+  if (p < amberBelow) return 'pct-amber';
+  return 'pct-green';
+}
+
+function renderDistrictTable(dt, gt) {
+  const thead = document.querySelector('#districtTable thead');
+  const tbody = document.querySelector('#districtTable tbody');
+  const tfoot = document.querySelector('#districtTable tfoot');
+  document.getElementById('revenueTitle').textContent =
+    'Revenue table (' + dt.length + (dt.length === 1 ? ' district' : ' districts') + ' with data)';
+  thead.innerHTML = '<tr><th>District</th><th>23-24</th><th>24-25</th><th>25-26</th><th>26-27</th>' +
+    '<th>Total Qty</th><th>23\u219224</th><th>24\u219225</th><th>25\u219226</th></tr>';
+  tbody.innerHTML = dt.map(d => '<tr>' +
+    '<td>' + escapeHtml(d.district) + '</td>' +
+    d.qty.map(q => '<td class="num">' + fmt(q) + '</td>').join('') +
+    '<td class="num">' + fmt(d.totalQty) + '</td>' +
+    d.growth.map(g => '<td class="num ' + pctClass(g, 0, 0.001) + '">' + fmtPct(g) + '</td>').join('') +
+    '</tr>').join('');
+  tfoot.innerHTML = '<tr><td>Grand Total</td>' +
+    gt.qty.map(q => '<td class="num">' + fmt(q) + '</td>').join('') +
+    '<td class="num">' + fmt(gt.totalQty) + '</td><td></td><td></td><td></td></tr>';
+}
+
+function renderSegmentTable(seg) {
+  const thead = document.querySelector('#segmentTable thead');
+  const tbody = document.querySelector('#segmentTable tbody');
+  thead.innerHTML = '<tr><th>Segment</th><th>Focus</th><th>Covered</th><th>Cov.%</th>' +
+    '<th>Pts Ach.</th><th>Pts Tgt</th><th>Pts%</th><th>Leads</th></tr>';
+  tbody.innerHTML = seg.map(s => '<tr>' +
+    '<td>' + escapeHtml(s.segment) + '</td>' +
+    '<td class="num">' + fmt(s.focusAccounts) + '</td>' +
+    '<td class="num">' + fmt(s.covered) + '</td>' +
+    '<td class="num ' + pctClass(s.coveragePct, 0.10, 0.25) + '">' + fmtPct(s.coveragePct) + '</td>' +
+    '<td class="num">' + (s.kopTarget ? fmt(s.kopAchieved) : '\u2013') + '</td>' +
+    '<td class="num">' + (s.kopTarget ? fmt(s.kopTarget) : '\u2013') + '</td>' +
+    '<td class="num ' + pctClass(s.pointsPct, 0.5, 1.0) + '">' + fmtPct(s.pointsPct) + '</td>' +
+    '<td class="num">' + (s.leads ? fmt(s.leads) : '\u2013') + '</td>' +
+    '</tr>').join('');
+}
+
+function renderDependence(elId, title, byYear, flagLabel, otherLabel) {
+  const years = ['23-24', '24-25', '25-26', '26-27'];
+  let html = '<div style="font-size:12px;font-weight:650;margin-bottom:6px">' + title + '</div>';
+  byYear.forEach((b, i) => {
+    html += '<div class="kv"><span class="label">' + years[i] + ' \u2014 ' + flagLabel + ' share</span>' +
+      '<span class="value num ' + pctClass(b.share, 0.5, 0.8) + '">' + fmtPct(b.share) + '</span></div>';
+  });
+  document.getElementById(elId).innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
