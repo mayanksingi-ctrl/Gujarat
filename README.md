@@ -63,6 +63,30 @@ npx serve .
 - **Map** — the existing interactive Gujarat hotspot map, needs an internet
   connection for its street tiles.
 
+## Fixed since first published
+
+**A serious one, not just a UI issue.** Gujarat's Detailed Sheet had never
+had a "Locality Category" column materialized into it — every single row
+was silently falling back to "Not classified", so the Locality Category
+filter and the Focus/KOP compliance numbers tied to it were computed from
+completely wrong groupings the whole time. Fixed by adding the real
+column, computed from the Cube's verified Cluster → Category mapping (the
+same one used throughout this project's Excel work). Re-verified against
+the original figures: "Hotspot - High value" now correctly narrows to just
+Sola, "Area of Interest" narrows to exactly 25 localities — both matching
+the numbers established when this project first classified Gujarat's
+hotspots.
+
+Separately, the growth% heat map coloring had a bug: it scaled colors
+relative to whichever min/max happened to be in the current filtered view,
+so if every visible district had negative growth, the "least negative" one
+could still render green. Fixed to anchor the color scale at a true 0%.
+
+Also: the Locality dropdown didn't narrow when you picked a Locality
+Category — it always showed the full list of ~690 localities regardless.
+Fixed to rebuild its options against the selected category (and reset to
+"(All)" if your previous pick isn't valid in the new category).
+
 ## Verified against established ground truth before publishing
 
 Every figure below was independently re-derived from the raw Detailed
