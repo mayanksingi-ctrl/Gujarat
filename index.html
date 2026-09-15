@@ -5,91 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gujarat District Summary</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="dashboard_logic.js"></script>
+<script src="gujarat_logic.js"></script>
 <style>
   :root {
-    --ink: #14213D;
-    --ink-soft: #4A5568;
-    --line: #E2E5EA;
-    --paper: #FCFCFB;
-    --panel: #FFFFFF;
-    --accent: #2E5A8C;
-    --red: #C13B3B;
-    --amber: #C88A1E;
-    --green: #2F8552;
-    --grey: #8A8F98;
-    --focus-ring: #2E5A8C;
+    --ink: #14213D; --ink-soft: #4A5568; --line: #E2E5EA; --paper: #FCFCFB; --panel: #FFFFFF;
+    --accent: #2E5A8C; --red: #C13B3B; --amber: #C88A1E; --green: #2F8552; --grey: #8A8F98;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    font-size: 14px;
-    line-height: 1.4;
-  }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.4; }
   .num { font-variant-numeric: tabular-nums; }
   h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   h2 { font-size: 14px; margin: 0 0 10px; font-weight: 650; color: var(--accent); }
-  header {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--line);
-    background: var(--panel);
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 30;
-  }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+           display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; }
   #status { font-size: 12px; color: var(--ink-soft); }
   #status.error { color: var(--red); font-weight: 600; }
-
-  .filters {
-    background: var(--panel);
-    border-bottom: 1px solid var(--line);
-    padding: 12px 24px;
-    display: flex; flex-wrap: wrap; gap: 14px;
-    position: sticky; top: 57px; z-index: 29;
-  }
-  .filter-item { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
+  .filters { background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 24px;
+             display: flex; flex-wrap: wrap; gap: 14px; position: sticky; top: 57px; z-index: 29; }
+  .filter-item { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
   .filter-item label { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
-  .filter-item select, .filter-item button {
-    font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
-    background: #fff; color: var(--ink); cursor: pointer;
-  }
-  .filter-item select:focus, .filter-item button:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-  #localityBtn { min-width: 180px; text-align: left; position: relative; }
-  #localityBtn .count-badge {
-    background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px;
-    font-size: 11px; margin-left: 6px;
-  }
-  #localityPanel {
-    display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
-    background: #fff; border: 1px solid var(--line); border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(20,33,61,0.12); padding: 10px; z-index: 40;
-    width: 340px; max-height: 360px; overflow-y: auto;
-  }
-  #localityPanel.open { display: block; }
-  #localityPanel .hint { font-size: 11px; color: var(--ink-soft); margin-bottom: 8px; }
-  .loc-row { display: flex; align-items: center; gap: 8px; padding: 3px 2px; font-size: 13px; }
-  .loc-row span.name { flex: 1; }
-  .loc-row span.qty { color: var(--ink-soft); font-size: 12px; }
-  #localityClear { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 6px; }
-
+  .filter-item select { font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
+                         background: #fff; color: var(--ink); cursor: pointer; }
+  .filter-item select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   main { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
   .showing { font-size: 13px; color: var(--accent); font-style: italic; margin-bottom: 16px; }
-
-  .card {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
-    padding: 16px; margin-bottom: 20px;
-  }
-  .grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
-
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  thead th {
-    position: sticky; top: 0; background: #F4F6F9; text-align: right; padding: 6px 8px;
-    border-bottom: 2px solid var(--line); font-weight: 650; color: var(--ink-soft); font-size: 11px;
-    white-space: nowrap;
-  }
+  thead th { position: sticky; top: 0; background: #F4F6F9; text-align: right; padding: 6px 8px;
+             border-bottom: 2px solid var(--line); font-weight: 650; color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
   thead th:first-child { text-align: left; }
   tbody td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
   tbody td:first-child { text-align: left; font-weight: 550; }
@@ -97,25 +43,17 @@
   tfoot td { padding: 6px 8px; font-weight: 700; border-top: 2px solid var(--ink); text-align: right; }
   tfoot td:first-child { text-align: left; }
   .scroll-table { max-height: 420px; overflow-y: auto; }
-
-  .pct-red { color: var(--red); font-weight: 650; }
-  .pct-amber { color: var(--amber); font-weight: 650; }
-  .pct-green { color: var(--green); font-weight: 650; }
+  .pct-red { background: #FDE8E8; color: #A33; font-weight: 650; }
+  .pct-amber { background: #FDF3D8; color: #A66A00; font-weight: 650; }
+  .pct-green { background: #E4F3E9; color: #1F6B3D; font-weight: 650; }
   .pct-grey { color: var(--grey); }
-
-  .kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
-  .kv:last-child { border-bottom: none; }
-  .kv .label { color: var(--ink-soft); }
-  .kv .value { font-weight: 650; }
-
+  .heat-cell { padding: 5px 10px !important; border-radius: 3px; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #EEF2F7; color: var(--ink-soft); margin-left: 6px; }
   .map-frame { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; height: 480px; }
   .map-frame iframe { width: 100%; height: 100%; border: none; }
   .map-note { font-size: 11px; color: var(--ink-soft); margin-top: 8px; }
-
-  .loading-overlay {
-    position: fixed; inset: 0; background: var(--paper); z-index: 100;
-    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
-  }
+  .loading-overlay { position: fixed; inset: 0; background: var(--paper); z-index: 100;
+                      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
   .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent);
              border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -138,8 +76,22 @@
 <main>
   <div class="showing" id="showingLine"></div>
 
+  <div class="card" id="prorataCard">
+    <h2>FY26-27 pro-rata comparison</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">
+      The 25-26 &rarr; 26-27 growth column compares a full 25-26 year against a still-partial 26-27
+      year, which understates performance. This assumes 25-26 sales were spread evenly across its own
+      12 months, and compares 26-27 against that same pro-rated slice instead &mdash; same approach as
+      the Gujarat workbook. Estimate only; edit the date to match when your 26-27 figures actually stop.
+    </div>
+    <label style="font-size:12px;font-weight:600;color:var(--ink-soft)">FY26-27 data captured through:
+      <input type="date" id="asOfDate" value="2026-08-20" style="margin-left:8px;padding:4px 8px;border:1px solid var(--line);border-radius:4px;font-size:13px">
+    </label>
+    <span id="prorataFactorNote" style="margin-left:16px;font-size:12px;color:var(--ink-soft)"></span>
+  </div>
+
   <div class="card">
-    <h2 id="revenueTitle">Revenue table</h2>
+    <h2 id="districtTitle">Revenue by District</h2>
     <div class="scroll-table">
       <table id="districtTable"><thead></thead><tbody></tbody><tfoot></tfoot></table>
     </div>
@@ -147,17 +99,25 @@
 
   <div class="grid-2">
     <div class="card">
-      <h2>BA Segment process-input compliance</h2>
-      <div class="scroll-table">
-        <table id="segmentTable"><thead></thead><tbody></tbody></table>
-      </div>
+      <h2>Focus account dependence</h2>
+      <div id="focusDep"></div>
     </div>
     <div class="card">
-      <h2>Live diagnostics</h2>
-      <div id="focusDep"></div>
-      <div style="height:14px"></div>
+      <h2>KOP account dependence</h2>
       <div id="kopDep"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2 id="segmentTitle">BA Segment process-input compliance</h2>
+    <div class="scroll-table">
+      <table id="segmentTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="card" id="devCard">
+    <h2 id="devTitle">Developers by locality</h2>
+    <div id="devBody"></div>
   </div>
 
   <div class="card">
@@ -170,15 +130,14 @@
 <script>
 const DATA_FILE = 'Gujarat_Summary_Data.xlsx';
 const SHEET_NAME = 'Detailed Sheet';
-const HEADER_ROW = 2; // 1-indexed row holding column titles
+const HEADER_ROW = 2;
+const DEV_FILE = 'gujarat_developers.json';
 
 let ROWS = [];
-let LOCALITIES = []; // [{name, qty}] sorted desc, recomputed per Locality Category
-const state = {
-  zone: '(All)', baType: '(All)', segment: '(All)', loyalty: '(All)',
-  focusAccount: '(All)', kopAccount: '(All)', localityCategory: '(All)',
-  selectedLocalities: [], focusCoverage: '(All)',
-};
+let DEV_DATA = [];
+const state = { zone: '(All)', baType: '(All)', segment: '(All)', loyalty: '(All)',
+                focusAccount: '(All)', kopAccount: '(All)', localityCategory: '(All)',
+                selectedLocalities: [], focusCoverage: '(All)' };
 
 const LISTS = {
   zone: ['(All)', 'North Zone', 'Central Zone', 'South Zone', 'West Zone'],
@@ -189,22 +148,31 @@ const LISTS = {
                       'Area of Interest', 'Not classified'],
   coverage: ['(All)', 'Yes', 'No', 'n/a'],
 };
-const SEGMENTS = ['(All)', 'Architect', 'Builder', 'Carpenter', 'Company', 'Door', 'Home Furniture',
-                   'Kitchen', 'Office Furniture', 'Project/Contractor', 'R1', 'R2', 'S1', 'S2'];
+let SEGMENTS = ['(All)'];
+let LOCALITIES = ['(All)'];
 
 async function init() {
   try {
     setLoading('Fetching ' + DATA_FILE + '\u2026');
     const buf = await fetchArrayBuffer(DATA_FILE);
+    setLoading('Fetching developer data\u2026');
+    try {
+      const devRes = await fetch(DEV_FILE);
+      DEV_DATA = devRes.ok ? await devRes.json() : [];
+    } catch (e) { DEV_DATA = []; }
     setLoading('Parsing workbook\u2026');
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[SHEET_NAME];
     if (!ws) throw new Error('Sheet "' + SHEET_NAME + '" not found in ' + DATA_FILE);
     const raw = XLSX.utils.sheet_to_json(ws, { range: HEADER_ROW - 1, defval: null });
-    ROWS = prepareRows(raw);
+    ROWS = prepareRows(raw).filter(r => r.gstin);
     document.getElementById('status').textContent = ROWS.length.toLocaleString() + ' accounts loaded';
+    SEGMENTS = ['(All)', ...new Set(ROWS.map(r => r.segment))].sort();
+    const locCounts = new Map();
+    ROWS.forEach(r => locCounts.set(r.cluster, (locCounts.get(r.cluster) || 0) + 1));
+    LOCALITIES = ['(All)', ...[...locCounts.keys()].sort()];
     buildFilterBar();
-    refreshLocalityPanel();
+    document.getElementById('asOfDate').addEventListener('change', render);
     render();
     document.getElementById('loadingOverlay').style.display = 'none';
   } catch (err) {
@@ -215,22 +183,19 @@ async function init() {
 async function fetchArrayBuffer(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error('Could not fetch ' + path + ' (HTTP ' + res.status + '). ' +
-    'If you opened this file directly (file://), your browser may block local file reads \u2014 ' +
-    'see the README for how to run a one-line local server instead.');
+    'If you opened this file directly (file://), your browser blocks local file reads \u2014 ' +
+    'see the README for a one-line local server.');
   return await res.arrayBuffer();
 }
 
 function showError(err) {
-  const el = document.getElementById('loadingText');
-  el.innerHTML = '<strong>Could not load the dashboard.</strong><br><br>' + escapeHtml(err.message);
+  document.getElementById('loadingText').innerHTML = '<strong>Could not load the dashboard.</strong><br><br>' + escapeHtml(err.message);
   document.getElementById('status').textContent = 'Load failed';
   document.getElementById('status').className = 'error';
 }
-
 function setLoading(msg) { document.getElementById('loadingText').textContent = msg; }
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-// ---------------- filter bar ----------------
 function buildFilterBar() {
   const bar = document.getElementById('filterBar');
   bar.innerHTML = '';
@@ -241,124 +206,122 @@ function buildFilterBar() {
   bar.appendChild(makeSelect('focusAccount', 'Focus Account', LISTS.yesNo));
   bar.appendChild(makeSelect('kopAccount', 'KOP Account', LISTS.yesNo));
   bar.appendChild(makeSelect('localityCategory', 'Locality Category', LISTS.localityCategory));
-  bar.appendChild(makeLocalityPicker());
+  bar.appendChild(makeLocalitySelect());
   bar.appendChild(makeSelect('focusCoverage', 'Focus Coverage', LISTS.coverage));
 }
 
-function makeSelect(key, label, options) {
-  const wrap = document.createElement('div');
-  wrap.className = 'filter-item';
-  const lab = document.createElement('label'); lab.textContent = label;
-  const sel = document.createElement('select');
-  sel.setAttribute('aria-label', label);
-  options.forEach(o => {
+function makeLocalitySelect() {
+  const wrap = document.createElement('div'); wrap.className = 'filter-item';
+  const lab = document.createElement('label'); lab.textContent = 'Locality';
+  const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Locality');
+  LOCALITIES.forEach(o => {
     const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
-    if (state[key] === o) opt.selected = true;
     sel.appendChild(opt);
   });
   sel.addEventListener('change', () => {
-    state[key] = sel.value;
-    if (key === 'localityCategory') { state.selectedLocalities = []; refreshLocalityPanel(); }
+    state.selectedLocalities = sel.value === '(All)' ? [] : [sel.value];
     render();
   });
   wrap.appendChild(lab); wrap.appendChild(sel);
   return wrap;
 }
 
-function makeLocalityPicker() {
-  const wrap = document.createElement('div');
-  wrap.className = 'filter-item';
-  wrap.style.position = 'relative';
-  const lab = document.createElement('label'); lab.textContent = 'Locality';
-  const btn = document.createElement('button');
-  btn.id = 'localityBtn';
-  btn.type = 'button';
-  btn.textContent = 'All in category';
-  const panel = document.createElement('div');
-  panel.id = 'localityPanel';
-  btn.addEventListener('click', () => panel.classList.toggle('open'));
-  document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target)) panel.classList.remove('open');
+function makeSelect(key, label, options) {
+  const wrap = document.createElement('div'); wrap.className = 'filter-item';
+  const lab = document.createElement('label'); lab.textContent = label;
+  const sel = document.createElement('select'); sel.setAttribute('aria-label', label);
+  options.forEach(o => {
+    const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+    if (state[key] === o) opt.selected = true;
+    sel.appendChild(opt);
   });
-  wrap.appendChild(lab); wrap.appendChild(btn); wrap.appendChild(panel);
+  sel.addEventListener('change', () => { state[key] = sel.value; render(); });
+  wrap.appendChild(lab); wrap.appendChild(sel);
   return wrap;
 }
 
-function refreshLocalityPanel() {
-  const panel = document.getElementById('localityPanel');
-  const btn = document.getElementById('localityBtn');
-  if (!panel) return;
-  const base = state.localityCategory === '(All)'
-    ? ROWS
-    : ROWS.filter(r => r.localityCategory === state.localityCategory);
-  const byCluster = new Map();
-  for (const r of base) {
-    const ys = [r.y1, r.y2, r.y3, r.y4].filter(y => y !== null);
-    const sum = ys.reduce((a, b) => a + b, 0);
-    byCluster.set(r.cluster, (byCluster.get(r.cluster) || 0) + sum);
-  }
-  LOCALITIES = [...byCluster.entries()].map(([name, qty]) => ({ name, qty }))
-    .sort((a, b) => b.qty - a.qty).slice(0, 40);
-
-  panel.innerHTML = '';
-  const hint = document.createElement('div');
-  hint.className = 'hint';
-  hint.textContent = 'Tick one or more to restrict the revenue table. Leave all unticked for everything in "' +
-    state.localityCategory + '".';
-  panel.appendChild(hint);
-  const clearBtn = document.createElement('button');
-  clearBtn.id = 'localityClear'; clearBtn.textContent = 'Clear selection';
-  clearBtn.addEventListener('click', () => { state.selectedLocalities = []; refreshLocalityPanel(); render(); });
-  panel.appendChild(clearBtn);
-
-  LOCALITIES.forEach(loc => {
-    const row = document.createElement('label');
-    row.className = 'loc-row';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = state.selectedLocalities.includes(loc.name);
-    cb.addEventListener('change', () => {
-      if (cb.checked) state.selectedLocalities.push(loc.name);
-      else state.selectedLocalities = state.selectedLocalities.filter(n => n !== loc.name);
-      updateLocalityButton();
-      render();
-    });
-    const name = document.createElement('span'); name.className = 'name'; name.textContent = loc.name;
-    const qty = document.createElement('span'); qty.className = 'qty num'; qty.textContent = loc.qty.toLocaleString();
-    row.appendChild(cb); row.appendChild(name); row.appendChild(qty);
-    panel.appendChild(row);
-  });
-  updateLocalityButton();
+function computeProrataFactor() {
+  const asOfStr = document.getElementById('asOfDate').value || '2026-08-20';
+  const asOf = new Date(asOfStr + 'T00:00:00Z');
+  const fyStart = new Date('2026-04-01T00:00:00Z');
+  const daysElapsed = Math.round((asOf - fyStart) / 86400000) + 1;
+  const factor = Math.max(0, daysElapsed) / 365;
+  document.getElementById('prorataFactorNote').textContent =
+    daysElapsed + ' days elapsed \u2192 pro-rata factor ' + (factor * 100).toFixed(1) + '%';
+  return factor;
 }
 
-function updateLocalityButton() {
-  const btn = document.getElementById('localityBtn');
-  if (!btn) return;
-  const n = state.selectedLocalities.length;
-  btn.innerHTML = (n === 0 ? 'All in category' : n + ' selected') +
-    (n > 0 ? '<span class="count-badge">' + n + '</span>' : '');
-}
-
-// ---------------- render ----------------
 function render() {
   const filtered = applyFilters(ROWS, state);
   document.getElementById('showingLine').textContent = 'Showing: ' + describeState();
 
-  const dt = districtTable(filtered);
+  const prorataFactor = computeProrataFactor();
+  const dt = districtTable(filtered, prorataFactor);
   const gt = grandTotal(dt);
-  renderDistrictTable(dt, gt);
+  renderDistrictTable(dt, gt, prorataFactor);
 
-  const seg = segmentTable(filtered);
-  renderSegmentTable(seg);
+  renderSegmentTable(segmentTable(filtered));
+  renderDependence('focusDep', 'Focus account dependence (Sale Qty)', dependenceBlock(filtered, 'isFocus'));
+  renderDependence('kopDep', 'KOP account dependence (Sale Qty)', dependenceBlock(filtered, 'isKop'));
+  renderDevPanel();
+}
 
-  renderDependence('focusDep', 'Focus account dependence', dependenceBlock(filtered, 'isFocus'), 'Focus', 'Other');
-  renderDependence('kopDep', 'KOP account dependence', dependenceBlock(filtered, 'isKop'), 'KOP', 'Other');
+function renderDependence(elId, title, byYear) {
+  const years = ['23-24', '24-25', '25-26', '26-27'];
+  let html = '<table><thead><tr><th style="text-align:left">Year</th><th>Flagged</th><th>Other</th>' +
+    '<th>Total</th><th>Share</th></tr></thead><tbody>';
+  byYear.forEach((b, i) => {
+    html += '<tr><td style="text-align:left">' + years[i] + '</td>' +
+      '<td class="num">' + fmt(b.flagged) + '</td><td class="num">' + fmt(b.other) + '</td>' +
+      '<td class="num">' + fmt(b.total) + '</td>' +
+      '<td class="num ' + (b.share === null ? 'pct-grey' : '') + '" style="' +
+        (b.share !== null ? heatStyle(b.share, byYear.map(x => x.share)) : '') + '">' + fmtPct(b.share) + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById(elId).innerHTML = html;
+}
+
+function renderDevPanel() {
+  const currentLocality = state.selectedLocalities[0];
+  document.getElementById('devTitle').textContent =
+    !currentLocality ? 'Developers by locality (all localities pulled so far)'
+                      : 'Developers \u2014 ' + currentLocality;
+  const body = document.getElementById('devBody');
+
+  if (currentLocality) {
+    const info = developersFor(currentLocality, DEV_DATA);
+    if (!info || !info.pulled) {
+      body.innerHTML = '<div style="color:var(--ink-soft);font-style:italic;font-size:13px">' +
+        'Not pulled yet for "' + escapeHtml(currentLocality) + '" \u2014 see the full list of what has been ' +
+        'pulled below, or add more in Gujarat_Summary_Data.xlsx\'s Developers tab and refresh.</div>';
+    } else {
+      body.innerHTML = '<ol style="margin:0 0 14px;padding-left:20px;font-size:13px">' +
+        info.devs.map(d => '<li>' + escapeHtml(d) + '</li>').join('') + '</ol>';
+    }
+  } else {
+    body.innerHTML = '';
+  }
+
+  const pulled = DEV_DATA.filter(d => d.devs && d.devs.length > 0);
+  if (pulled.length === 0) {
+    body.innerHTML += '<div style="color:var(--ink-soft);font-style:italic;font-size:13px">' +
+      'No developer data has been pulled for any locality yet.</div>';
+    return;
+  }
+  body.innerHTML += '<table style="margin-top:4px"><thead><tr><th style="text-align:left">Locality</th>' +
+    '<th style="text-align:left">Developers</th></tr></thead><tbody>' +
+    pulled.map(d => '<tr><td style="text-align:left;vertical-align:top;font-weight:550">' + escapeHtml(d.locality) +
+      '</td><td style="text-align:left">' + escapeHtml(d.devs.join(', ')) + '</td></tr>').join('') +
+    '</tbody></table>' +
+    '<div style="color:var(--ink-soft);font-style:italic;font-size:12px;margin-top:8px">' +
+    pulled.length + ' of ' + DEV_DATA.length + ' Gujarat localities pulled so far. Add more in the Developers ' +
+    'tab of Gujarat_Summary_Data.xlsx and refresh \u2014 no code change needed.</div>';
 }
 
 function describeState() {
   const parts = [];
   Object.entries(state).forEach(([k, v]) => {
-    if (k === 'selectedLocalities') { if (v.length) parts.push(v.length + ' localities'); return; }
+    if (k === 'selectedLocalities') { if (v.length) parts.push(v[0]); return; }
     if (v !== '(All)') parts.push(v);
   });
   return parts.length ? parts.join(' \u00b7 ') : 'everything (no filters applied)';
@@ -366,57 +329,81 @@ function describeState() {
 
 function fmt(n) { return n === null || n === undefined ? '\u2013' : Math.round(n).toLocaleString(); }
 function fmtPct(p) { return p === null || p === undefined ? '\u2013' : (p * 100).toFixed(1) + '%'; }
-function pctClass(p, redBelow, amberBelow) {
-  if (p === null || p === undefined) return 'pct-grey';
-  if (p < redBelow) return 'pct-red';
-  if (p < amberBelow) return 'pct-amber';
-  return 'pct-green';
+
+// true heat-map gradient: red -> amber -> green, interpolated by the value's position
+// between the min and max of the CURRENT set of values (same idea as Excel's 3-colour scale)
+function heatStyle(value, allValues) {
+  if (value === null || value === undefined) return '';
+  const vals = allValues.filter(v => v !== null && v !== undefined);
+  if (vals.length < 2) return '';
+  const min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) return '';
+  const mid = 0 >= min && 0 <= max ? 0 : (min + max) / 2;
+  const RED = [217, 83, 79], AMBER = [255, 214, 92], GREEN = [92, 184, 120];
+  let t, from, to;
+  if (value <= mid) {
+    t = mid === min ? 0 : (value - min) / (mid - min);
+    from = RED; to = AMBER;
+  } else {
+    t = max === mid ? 1 : (value - mid) / (max - mid);
+    from = AMBER; to = GREEN;
+  }
+  t = Math.max(0, Math.min(1, t));
+  const rgb = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+  return 'background:rgb(' + rgb.join(',') + ');font-weight:600;color:#1C1917';
 }
 
-function renderDistrictTable(dt, gt) {
-  const thead = document.querySelector('#districtTable thead');
-  const tbody = document.querySelector('#districtTable tbody');
-  const tfoot = document.querySelector('#districtTable tfoot');
-  document.getElementById('revenueTitle').textContent =
-    'Revenue table (' + dt.length + (dt.length === 1 ? ' district' : ' districts') + ' with data)';
-  thead.innerHTML = '<tr><th>District</th><th>23-24</th><th>24-25</th><th>25-26</th><th>26-27</th>' +
-    '<th>Total Qty</th><th>23\u219224</th><th>24\u219225</th><th>25\u219226</th></tr>';
-  tbody.innerHTML = dt.map(d => '<tr>' +
+function renderDistrictTable(dt, gt, prorataFactor) {
+  document.getElementById('districtTitle').textContent =
+    'Revenue by District (' + dt.length + (dt.length === 1 ? ' district' : ' districts') + ' with data)';
+  document.querySelector('#districtTable thead').innerHTML =
+    '<tr><th>District</th><th>23-24</th><th>24-25</th><th>25-26</th><th>26-27</th><th>Total Qty</th>' +
+    '<th>Distinct BAs</th><th>23\u219224</th><th>24\u219225</th><th>25\u219226 (pro-rata)</th></tr>';
+  const g1 = dt.map(d => d.growth[0]), g2 = dt.map(d => d.growth[1]), g3 = dt.map(d => d.growth[2]);
+  document.querySelector('#districtTable tbody').innerHTML = dt.map(d => '<tr>' +
     '<td>' + escapeHtml(d.district) + '</td>' +
     d.qty.map(q => '<td class="num">' + fmt(q) + '</td>').join('') +
     '<td class="num">' + fmt(d.totalQty) + '</td>' +
-    d.growth.map(g => '<td class="num ' + pctClass(g, 0, 0.001) + '">' + fmtPct(g) + '</td>').join('') +
+    '<td class="num">' + fmt(d.dcTotal) + '</td>' +
+    '<td class="num heat-cell" style="' + heatStyle(d.growth[0], g1) + '">' + fmtPct(d.growth[0]) + '</td>' +
+    '<td class="num heat-cell" style="' + heatStyle(d.growth[1], g2) + '">' + fmtPct(d.growth[1]) + '</td>' +
+    '<td class="num heat-cell" style="' + heatStyle(d.growth[2], g3) + '">' + fmtPct(d.growth[2]) + '</td>' +
     '</tr>').join('');
-  tfoot.innerHTML = '<tr><td>Grand Total</td>' +
+  const gtGrowth = prorataGrowth(gt.qty[2], gt.qty[3], prorataFactor);
+  document.querySelector('#districtTable tfoot').innerHTML = '<tr><td>Grand Total</td>' +
     gt.qty.map(q => '<td class="num">' + fmt(q) + '</td>').join('') +
-    '<td class="num">' + fmt(gt.totalQty) + '</td><td></td><td></td><td></td></tr>';
+    '<td class="num">' + fmt(gt.totalQty) + '</td><td></td><td></td><td></td>' +
+    '<td class="num">' + fmtPct(gtGrowth) + '</td></tr>';
+}
+
+function renderLocalityTable(locs) {
+  document.getElementById('localityTitle').textContent = 'Top localities (' + locs.length + ' shown)';
+  document.querySelector('#localityTable thead').innerHTML =
+    '<tr><th>Locality</th><th>Category</th><th>BAs</th><th>Total Qty</th></tr>';
+  document.querySelector('#localityTable tbody').innerHTML = locs.map(l => '<tr>' +
+    '<td>' + escapeHtml(l.locality) + '<span class="badge">' + escapeHtml(l.localityCategory.replace('Hotspot - ','')) + '</span></td>' +
+    '<td style="text-align:left">' + escapeHtml(l.localityCategory) + '</td>' +
+    '<td class="num">' + fmt(l.baCount) + '</td>' +
+    '<td class="num">' + fmt(l.totalQty) + '</td>' +
+    '</tr>').join('');
 }
 
 function renderSegmentTable(seg) {
-  const thead = document.querySelector('#segmentTable thead');
-  const tbody = document.querySelector('#segmentTable tbody');
-  thead.innerHTML = '<tr><th>Segment</th><th>Focus</th><th>Covered</th><th>Cov.%</th>' +
-    '<th>Pts Ach.</th><th>Pts Tgt</th><th>Pts%</th><th>Leads</th></tr>';
-  tbody.innerHTML = seg.map(s => '<tr>' +
+  document.querySelector('#segmentTable thead').innerHTML =
+    '<tr><th>Segment</th><th>Sales Driver</th><th>Focus Accounts</th><th>Covered</th><th>Coverage %</th>' +
+    '<th>Scheme Pts Achieved</th><th>Scheme Pts Target</th><th>Scheme Pts %</th><th>Leads</th></tr>';
+  const covPcts = seg.map(s => s.coveragePct), ptsPcts = seg.map(s => s.pointsPct);
+  document.querySelector('#segmentTable tbody').innerHTML = seg.map(s => '<tr>' +
     '<td>' + escapeHtml(s.segment) + '</td>' +
+    '<td style="text-align:left;color:var(--ink-soft);font-size:12px;white-space:normal;max-width:220px">' + escapeHtml(s.driver) + '</td>' +
     '<td class="num">' + fmt(s.focusAccounts) + '</td>' +
     '<td class="num">' + fmt(s.covered) + '</td>' +
-    '<td class="num ' + pctClass(s.coveragePct, 0.10, 0.25) + '">' + fmtPct(s.coveragePct) + '</td>' +
+    '<td class="num heat-cell" style="' + heatStyle(s.coveragePct, covPcts) + '">' + fmtPct(s.coveragePct) + '</td>' +
     '<td class="num">' + (s.kopTarget ? fmt(s.kopAchieved) : '\u2013') + '</td>' +
     '<td class="num">' + (s.kopTarget ? fmt(s.kopTarget) : '\u2013') + '</td>' +
-    '<td class="num ' + pctClass(s.pointsPct, 0.5, 1.0) + '">' + fmtPct(s.pointsPct) + '</td>' +
+    '<td class="num heat-cell" style="' + (s.pointsPct !== null ? heatStyle(s.pointsPct, ptsPcts) : '') + '">' + fmtPct(s.pointsPct) + '</td>' +
     '<td class="num">' + (s.leads ? fmt(s.leads) : '\u2013') + '</td>' +
     '</tr>').join('');
-}
-
-function renderDependence(elId, title, byYear, flagLabel, otherLabel) {
-  const years = ['23-24', '24-25', '25-26', '26-27'];
-  let html = '<div style="font-size:12px;font-weight:650;margin-bottom:6px">' + title + '</div>';
-  byYear.forEach((b, i) => {
-    html += '<div class="kv"><span class="label">' + years[i] + ' \u2014 ' + flagLabel + ' share</span>' +
-      '<span class="value num ' + pctClass(b.share, 0.5, 0.8) + '">' + fmtPct(b.share) + '</span></div>';
-  });
-  document.getElementById(elId).innerHTML = html;
 }
 
 init();

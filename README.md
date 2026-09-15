@@ -1,92 +1,96 @@
 # Gujarat District Summary — web dashboard
 
-A browser-based version of the Summary sheet: same filters, same revenue table,
-same segment compliance table and diagnostics — but genuinely dynamic (real
-multi-select, no frozen-pane or dropdown quirks) and with the actual
-interactive map embedded, not a static image.
+Same architecture as the Pune dashboard, built for Gujarat's richer data —
+Gujarat's Detailed Sheet has the Focus Accounts / KOP-Q2 / RSM Review /
+leads extract all joined in, so this dashboard shows the full process-input
+compliance table with real numbers, not N/A.
 
-## How it's built
+## What's inside
 
-- `index.html` — the dashboard page (filters, tables, layout, styling)
-- `dashboard_logic.js` — the calculation engine (filtering, aggregation).
-  Kept separate on purpose so it can be tested independently of the browser.
-- `Gujarat_Summary_Data.xlsx` — the data source. **Edit this file directly**
-  (add rows to the Detailed Sheet, update figures) and refresh the browser —
-  no re-export, no rebuild step.
-- `Gujarat_Hotspot_Map.html` — the original interactive map, embedded inline.
+- `index.html` — the dashboard page
+- `gujarat_logic.js` — the calculation engine (filtering, aggregation),
+  kept separate so it can be tested independently of the browser
+- `Gujarat_Summary_Data.xlsx` — the data source. **Edit this directly**
+  (the "Detailed Sheet" tab) and refresh the browser — no rebuild step.
+- `Gujarat_Hotspot_Map.html` — the interactive Gujarat hotspot map,
+  embedded inline
+- `gujarat_developers.json` — developer-by-locality lookup, extracted from
+  the Developers tab in the xlsx
 
-The dashboard reads the **Detailed Sheet** tab of the xlsx file each time it
-loads, using a library called SheetJS (loaded automatically from the internet
-the first time you open the page — after that your browser caches it).
+## Running it
 
-## Running it — one thing you must do first
+Same rule as the Pune package: **double-clicking `index.html` will not
+work.** Browsers block local file reads for security. Serve the folder with
+a one-line local server:
 
-Opening `index.html` by double-clicking it will **not work**. Browsers block
-web pages from reading local files directly for security reasons (this is a
-browser rule, not something this dashboard can work around). You need to
-serve the folder over a tiny local web server — this takes one command and
-no installation if you already have Python or Node:
-
-**Python (most common):**
+**Python:**
 ```
 cd path/to/this/folder
 python3 -m http.server 8000
 ```
-Then open **http://localhost:8000** in your browser.
+Then open **http://localhost:8000**.
 
-**Node.js, if you have it instead:**
+**Node.js:**
 ```
-cd path/to/this/folder
 npx serve .
 ```
-Then open the URL it prints (usually http://localhost:3000).
 
-**VS Code users:** the "Live Server" extension does this with one click —
-right-click `index.html` → "Open with Live Server".
+**VS Code:** right-click `index.html` → "Open with Live Server".
 
-Leave the terminal window open while you use the dashboard; closing it stops
-the server. To stop it yourself, press Ctrl+C in that terminal.
+## What's shown
+
+- **Filters:** Zone, BA Type, BA Segment, Loyalty, Focus Account, KOP
+  Account, Locality Category, Locality, Focus Coverage — the same nine
+  filters as the Excel version. Locality is a single-select dropdown that
+  narrows to whichever Locality Category is picked, matching the decision
+  made earlier in this project to simplify away from a checkbox-based
+  multi-select.
+- **FY26-27 pro-rata comparison** — same mechanism as the Excel workbook.
+  The 25-26 → 26-27 growth column compares 26-27's actual figure against a
+  pro-rated slice of 25-26 (assuming even monthly spread) rather than the
+  full year, since 26-27 is still a partial year. Edit the "data captured
+  through" date to match your actual cutoff; recalculates live.
+- **Revenue by District** — all 29 districts, with growth% columns shown as
+  a genuine heat-map background gradient (red → amber → green).
+- **Focus account dependence** and **KOP account dependence** — the same
+  live diagnostic blocks as the Excel Summary sheet, year by year.
+- **BA Segment process-input compliance** — Focus Accounts, Covered,
+  Coverage %, Scheme Points Achieved/Target/%, and Leads, computed live
+  from the real Focus/KOP-Q2/RSM/leads join in the Detailed Sheet.
+- **Developers by locality** — always visible, shows what's been pulled so
+  far (currently 2 of 688 localities: Vesu, Adajan) plus locality-specific
+  detail when you pick one in the filter bar.
+- **Map** — the existing interactive Gujarat hotspot map, needs an internet
+  connection for its street tiles.
+
+## Verified against established ground truth before publishing
+
+Every figure below was independently re-derived from the raw Detailed
+Sheet data and matched exactly against the numbers already established and
+verified in the Excel version of this project:
+
+- Grand Total: 1,041,399
+- South Zone Grand Total: 478,375 (tested live via the Zone filter)
+- R1 segment: 500 Focus Accounts, 13 Covered, 2,439 of 9,000 scheme points,
+  19 leads
+- Focus account dependence shares: 78.4% / 85.7% / 88.6% / 87.1%
+  (23-24 through 26-27)
+- KOP account dependence shares: 7.5% / 10.2% / 18.1% / 15.5%
+- Pro-rata growth math cross-checked against the Excel workbook's own
+  pro-rata block
 
 ## Updating the data
 
-1. Open `Gujarat_Summary_Data.xlsx` in Excel, edit the **Detailed Sheet** tab
-   (add rows, correct figures, whatever's needed).
-2. Save the file, keeping the same name and location.
-3. Refresh the dashboard in your browser (F5). That's it — no export, no
-   conversion, no re-running anything.
-
-If you rename columns on the Detailed Sheet, update the matching field names
-near the top of `dashboard_logic.js` (each one is named after its column
-header, e.g. `r['BA Segment']`).
-
-## What's live vs. what's a fixed reference
-
-- Filters, revenue table, segment compliance table, and the Focus/KOP
-  diagnostics all recompute instantly from whatever is in the xlsx file.
-- The Sales Driver text for each segment (e.g. "Focus account coverage,
-  scheme point achievement...") is fixed in `dashboard_logic.js`
-  (`SEGMENT_DRIVERS`), matching how the original Summary sheet treated it as
-  a static reference table, not something that changes with the data.
-- The map is the same static hotspot classification built earlier in this
-  project (from Housing.com listing data) — it does not update from the
-  Detailed Sheet, since it's a different underlying dataset (locality listing
-  prices, not your sales figures). It needs an internet connection to draw
-  its street map tiles; if you're offline, the map area will appear blank
-  until you're back online, but the rest of the dashboard works either way.
-
-## What this fixes vs. the Excel version
-
-- Locality selection is a real multi-select checkbox list, not a Yes/No grid
-  workaround.
-- No frozen-pane or dropdown-arrow quirks — those were Excel-specific
-  rendering issues this format doesn't have.
-- The map is the actual interactive version (pan, zoom, layer toggles), not
-  a static image.
+Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the
+"Developers" tab for the developer lookup), save, refresh the browser.
+If you rename a column, update the matching field name near the top of
+`gujarat_logic.js`.
 
 ## Known limitation
 
-Only the **Detailed Sheet** tab is read. The RSM reconciliation sheets, the
-KOP-Q2 sheet, and the Focus Accounts sheet are not re-joined live — their
-results are already folded into Detailed Sheet's `KOP:`, `Focus:`, and `RSM:`
-columns from earlier work on this project, so editing those columns directly
-is the way to update that information here.
+Only the "Detailed Sheet" and "Developers" tabs are read directly. The RSM
+reconciliation sheets, KOP-Q2 sheet, and Focus Accounts sheet are not
+re-joined live in the browser — their results are already folded into
+Detailed Sheet's `KOP:`, `Focus:`, and `RSM:` columns from earlier work on
+this project, so editing those columns directly is the way to update that
+information here.
