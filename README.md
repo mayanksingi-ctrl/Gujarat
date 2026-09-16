@@ -63,7 +63,23 @@ npx serve .
 - **Map** — the existing interactive Gujarat hotspot map, needs an internet
   connection for its street tiles.
 
+## Checking you're on the current build
+
+The bottom-right of the page header shows a small "build" date/letter (e.g.
+"build 2026-09-15-c"). If a fix described in this README doesn't seem to
+be there, check that marker first — a hard refresh (Ctrl/Cmd+Shift+R) or
+clearing the browser cache for localhost will usually resolve it, since
+this is otherwise identical to a previous build with the same file names.
+
 ## Fixed since first published
+
+**Made the narrowing impossible to miss.** The Locality Category → Locality
+narrowing fix from before was correct and tested — but it wasn't very
+visible, since the Locality dropdown still just displayed "(All)" after
+narrowing, and you'd only see the shorter list by clicking it open. The
+Locality label now shows a live count directly, e.g. "Locality (1 option
+in category)", so it's obvious the moment you change the category, without
+needing to open the dropdown.
 
 **A serious one, not just a UI issue.** Gujarat's Detailed Sheet had never
 had a "Locality Category" column materialized into it — every single row

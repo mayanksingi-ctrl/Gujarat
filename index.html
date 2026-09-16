@@ -68,7 +68,10 @@
 
 <header>
   <h1>Gujarat District Summary</h1>
-  <div id="status"></div>
+  <div style="text-align:right">
+    <div id="status"></div>
+    <div style="font-size:10px;color:var(--ink-soft)">build 2026-09-15-c</div>
+  </div>
 </header>
 
 <div class="filters" id="filterBar"></div>
@@ -214,14 +217,12 @@ function buildFilterBar() {
   bar.appendChild(makeSelect('loyalty', 'Loyalty', LISTS.loyalty));
   bar.appendChild(makeSelect('focusAccount', 'Focus Account', LISTS.yesNo));
   bar.appendChild(makeSelect('kopAccount', 'KOP Account', LISTS.yesNo));
-  bar.appendChild(makeSelect('localityCategory', 'Locality Category', LISTS.localityCategory));
+  // Locality options depend on which Locality Category is selected, so this select
+  // takes an extra onChange callback (attached directly, not found later via
+  // querySelector) that rebuilds the Locality dropdown's own option list.
+  bar.appendChild(makeSelect('localityCategory', 'Locality Category', LISTS.localityCategory, refreshLocalityOptions));
   bar.appendChild(makeLocalitySelect());
   bar.appendChild(makeSelect('focusCoverage', 'Focus Coverage', LISTS.coverage));
-  // Locality options depend on which Locality Category is selected, so the category
-  // dropdown needs an extra listener (on top of the generic one makeSelect already
-  // attached) that rebuilds the Locality dropdown's own option list.
-  document.querySelector('select[aria-label="Locality Category"]')
-    .addEventListener('change', refreshLocalityOptions);
 }
 
 function localitiesForCurrentCategory() {
@@ -233,6 +234,7 @@ function refreshLocalityOptions() {
   const sel = document.getElementById('localitySelect');
   if (!sel) return;
   const options = ['(All)', ...localitiesForCurrentCategory()];
+  refreshLocalityLabel();
   const currentSelection = state.selectedLocalities[0];
   const stillValid = currentSelection && options.includes(currentSelection);
   sel.innerHTML = '';
@@ -247,9 +249,19 @@ function refreshLocalityOptions() {
   }
 }
 
+function localityLabelText() {
+  const opts = localitiesForCurrentCategory();
+  return 'Locality (' + opts.length + (opts.length === 1 ? ' option' : ' options') +
+    (state.localityCategory === '(All)' ? '' : ' in category') + ')';
+}
+function refreshLocalityLabel() {
+  const lab = document.getElementById('localityLabel');
+  if (lab) lab.textContent = localityLabelText();
+}
+
 function makeLocalitySelect() {
   const wrap = document.createElement('div'); wrap.className = 'filter-item';
-  const lab = document.createElement('label'); lab.textContent = 'Locality';
+  const lab = document.createElement('label'); lab.id = 'localityLabel'; lab.textContent = localityLabelText();
   const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Locality');
   sel.id = 'localitySelect';
   const options = ['(All)', ...localitiesForCurrentCategory()];
@@ -265,7 +277,7 @@ function makeLocalitySelect() {
   return wrap;
 }
 
-function makeSelect(key, label, options) {
+function makeSelect(key, label, options, onChangeExtra) {
   const wrap = document.createElement('div'); wrap.className = 'filter-item';
   const lab = document.createElement('label'); lab.textContent = label;
   const sel = document.createElement('select'); sel.setAttribute('aria-label', label);
@@ -274,7 +286,11 @@ function makeSelect(key, label, options) {
     if (state[key] === o) opt.selected = true;
     sel.appendChild(opt);
   });
-  sel.addEventListener('change', () => { state[key] = sel.value; render(); });
+  sel.addEventListener('change', () => {
+    state[key] = sel.value;
+    render();
+    if (onChangeExtra) onChangeExtra();
+  });
   wrap.appendChild(lab); wrap.appendChild(sel);
   return wrap;
 }
