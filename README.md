@@ -119,6 +119,34 @@ verified in the Excel version of this project:
 - Pro-rata growth math cross-checked against the Excel workbook's own
   pro-rata block
 
+## Focus Coverage refreshed (RSM_Review_Master, Sep-26 YTD)
+
+Focus Account Coverage, and the "Covered" / "Coverage %" columns in the BA
+Segment table, are now based on the RSM_Review_Master upload rather than
+the original August snapshot — one month more recent (through September
+2026), and matched by GSTIN instead of the fuzzier name-based approach the
+original file needed (99.6% of its rows had a usable GSTIN).
+
+Three real bugs were found and fixed while refreshing this, not just new
+numbers layered on old logic:
+- The Excel workbook's hidden Cube stored coverage as a bucket-level flag,
+  which double- and triple-counted accounts sharing a bucket. Rebuilt to
+  query a proper per-account detail sheet instead.
+- A data-clearing bug of my own left stale sale-quantity values on accounts
+  that should have shown as not-covered under the refreshed data — correct
+  in Excel's own Yes/No column, but would have caused this dashboard to
+  overcount, since it checks for a value's presence rather than reading
+  that column directly.
+- A segment-naming inconsistency ("Project", "Contractor", and "PMC" merge
+  into "Project/Contractor" elsewhere in the workbook) wasn't being applied
+  to the new coverage data, undercounting that segment specifically.
+
+All 13 segments' Focus Account and Covered counts were cross-checked
+between this dashboard's own JavaScript logic and the Excel workbook
+independently — every one matches exactly (R1: 500 Focus / 5 Covered,
+R2: 382/9, Office Furniture: 136/26, and so on). Grand Total remains
+1,041,399, confirming nothing else was disturbed by this update.
+
 ## Updating the data
 
 Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the

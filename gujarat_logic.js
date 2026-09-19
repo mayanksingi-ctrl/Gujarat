@@ -25,7 +25,7 @@ function prepareRows(raw) {
         isKop: r['KOP: SO'] != null && r['KOP: SO'] !== '',
         kopAchieved: toNum(r['KOP: Achieved Points']),
         kopSlab1: toNum(r['KOP: Slab 1 Points Trgt']),
-        rsmSaleQty: r['RSM: Sale Qty (Aug 26 YTD)'],
+        rsmSaleQty: r['RSM: Sale Qty (Sep 26 YTD)'],
         leadsGenerated: toNum(r['Leads: Generated (from Data_of_Leads_Gujarat)']),
       };
     })
