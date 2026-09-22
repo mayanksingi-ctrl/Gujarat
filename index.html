@@ -128,6 +128,79 @@
     <div class="map-frame"><iframe src="Gujarat_Hotspot_Map.html" title="Gujarat hotspot map"></iframe></div>
     <div class="map-note">Interactive map — pan, zoom, and toggle layers. Needs an internet connection to load street tiles.</div>
   </div>
+
+  <h1 style="margin-top:24px">Trend & Root Cause Analysis</h1>
+  <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">
+    FY26-27 vs comparable pro-rated FY25-26 period. All figures deduplicated per BA GSTIN where the metric
+    is BA-level, not per transaction row. <span id="benchmarkNote"></span>
+  </div>
+
+  <div class="card">
+    <h2>1. Zone-wise trend</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      All four zones show pro-rata degrowth this year — broad-based across Gujarat, not isolated to one area.
+    </div>
+    <div class="scroll-table"><table id="zoneTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>2. City (District)-wise trend</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      Sorted by 26-27 volume. Surat and Ahmedabad — the two largest cities — are both in decline.
+    </div>
+    <div class="scroll-table"><table id="districtTrendTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>3. BA Segment (category)-wise trend</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      "Applicable Inputs" shows only the process parameters that matter for that segment.
+    </div>
+    <div class="scroll-table"><table id="segmentTrendTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Root Cause Analysis / CAPA: District x Segment degrowth</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      District-wise so action can be targeted where it's actually executed. Sorted by Upside Potential
+      (highest cost-benefit opportunities first) within Misaligned-priorities rows.
+    </div>
+    <div class="scroll-table"><table id="rcaTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>4a. Sample sizes behind the Upside Potential estimates</h2>
+    <div class="scroll-table"><table id="sampleTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>5. Retail: locality-based likely output vs process inputs</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      Locality Category uses a weighted index: 60% sale/rental listing concentration (Gujarat's own
+      sales volume proxy), 20% retail counter concentration, 20% kitchen showroom concentration.
+    </div>
+    <div class="scroll-table"><table id="retailLocTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>6. Locality income segmentation (property-price proxy)</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      MoSPI has no true locality-level income data. This uses residential property price/sqft (2026) as
+      an income/purchasing-power proxy for the 26 highest-volume localities, split into tertiles.
+    </div>
+    <div class="scroll-table"><table id="incomeBandTable"><thead></thead><tbody></tbody></table></div>
+    <h3 style="margin-top:16px;font-size:14px">Locality detail</h3>
+    <div class="scroll-table"><table id="localityDetailTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>7. Kitchen showrooms in High/Medium income localities</h2>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">
+      Competitive-presence data (who else is selling kitchens there), not a measure of our own coverage.
+      Sorted by property price descending.
+    </div>
+    <div class="scroll-table"><table id="showroomTable"><thead></thead><tbody></tbody></table></div>
+  </div>
 </main>
 
 <script>
@@ -135,12 +208,14 @@ const DATA_FILE = 'Gujarat_Summary_Data.xlsx';
 const SHEET_NAME = 'Detailed Sheet';
 const HEADER_ROW = 2;
 const DEV_FILE = 'gujarat_developers.json';
+const TREND_FILE = 'gujarat_trend_data.json';
 
 let ROWS = [];
 let DEV_DATA = [];
+let TREND_DATA = null;
 const state = { zone: '(All)', baType: '(All)', segment: '(All)', loyalty: '(All)',
                 focusAccount: '(All)', kopAccount: '(All)', localityCategory: '(All)',
-                selectedLocalities: [], focusCoverage: '(All)' };
+                selectedLocalities: [] };
 
 const LISTS = {
   zone: ['(All)', 'North Zone', 'Central Zone', 'South Zone', 'West Zone'],
@@ -164,6 +239,11 @@ async function init() {
       const devRes = await fetch(DEV_FILE);
       DEV_DATA = devRes.ok ? await devRes.json() : [];
     } catch (e) { DEV_DATA = []; }
+    setLoading('Fetching trend & root cause data\u2026');
+    try {
+      const trendRes = await fetch(TREND_FILE);
+      TREND_DATA = trendRes.ok ? await trendRes.json() : null;
+    } catch (e) { TREND_DATA = null; }
     setLoading('Parsing workbook\u2026');
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[SHEET_NAME];
@@ -186,6 +266,7 @@ async function init() {
     buildFilterBar();
     document.getElementById('asOfDate').addEventListener('change', render);
     render();
+    renderTrendSections();
     document.getElementById('loadingOverlay').style.display = 'none';
   } catch (err) {
     showError(err);
@@ -222,7 +303,6 @@ function buildFilterBar() {
   // querySelector) that rebuilds the Locality dropdown's own option list.
   bar.appendChild(makeSelect('localityCategory', 'Locality Category', LISTS.localityCategory, refreshLocalityOptions));
   bar.appendChild(makeLocalitySelect());
-  bar.appendChild(makeSelect('focusCoverage', 'Focus Coverage', LISTS.coverage));
 }
 
 function localitiesForCurrentCategory() {
@@ -449,7 +529,8 @@ function renderLocalityTable(locs) {
 function renderSegmentTable(seg) {
   document.querySelector('#segmentTable thead').innerHTML =
     '<tr><th>Segment</th><th>Sales Driver</th><th>Focus Accounts</th><th>Covered</th><th>Coverage %</th>' +
-    '<th>Scheme Pts Achieved</th><th>Scheme Pts Target</th><th>Scheme Pts %</th><th>Leads</th></tr>';
+    '<th>Scheme Pts Achieved</th><th>Scheme Pts Target</th><th>Scheme Pts %</th><th>Leads</th>' +
+    '<th>Coverage Param</th><th>Points Param</th><th>Leads Param</th><th>Achieved</th></tr>';
   const covPcts = seg.map(s => s.coveragePct), ptsPcts = seg.map(s => s.pointsPct);
   document.querySelector('#segmentTable tbody').innerHTML = seg.map(s => '<tr>' +
     '<td>' + escapeHtml(s.segment) + '</td>' +
@@ -461,7 +542,127 @@ function renderSegmentTable(seg) {
     '<td class="num">' + (s.kopTarget ? fmt(s.kopTarget) : '\u2013') + '</td>' +
     '<td class="num heat-cell" style="' + (s.pointsPct !== null ? heatStyle(s.pointsPct, ptsPcts) : '') + '">' + fmtPct(s.pointsPct) + '</td>' +
     '<td class="num">' + (s.leads ? fmt(s.leads) : '\u2013') + '</td>' +
+    '<td class="num">' + (s.hasCoverageParam ? 'Yes' : 'No') + '</td>' +
+    '<td class="num">' + (s.hasPointsParam ? 'Yes' : 'No') + '</td>' +
+    '<td class="num">' + (s.hasLeadsParam ? 'Yes' : 'No') + '</td>' +
+    '<td class="num" style="' + (s.achieved === true ? 'background:#d4edda' : s.achieved === false ? 'background:#f8d7da' : '') + '">' +
+    (s.achieved === null ? 'N/A' : s.achieved ? 'Yes' : 'No') + '</td>' +
     '</tr>').join('');
+}
+
+// ---------------- Trend & Root Cause Analysis sections (static, pre-computed) ----------------
+function pctFmt(v) { return v === null || v === undefined ? '\u2013' : (v*100).toFixed(1) + '%'; }
+function growthStyle(v) {
+  if (v === null || v === undefined) return '';
+  const t = Math.max(-1, Math.min(1, v));
+  const color = t < 0 ? `rgb(${217},${83+((1+t)*140)|0},${79+((1+t)*100)|0})` : `rgb(${217-((t)*130)|0},${190+((t)*30)|0},${120})`;
+  return 'background:' + color + ';font-weight:600';
+}
+
+function renderTrendSections() {
+  if (!TREND_DATA) return;
+  const d = TREND_DATA;
+  document.getElementById('benchmarkNote').textContent =
+    `Benchmarks: Coverage ${pctFmt(d.benchmarks.coverage_pct)} | Points ${pctFmt(d.benchmarks.points_pct)} | Leads/BA ${d.benchmarks.leads_per_ba.toFixed(3)}`;
+
+  // Section 1: Zone
+  const zoneSorted = [...d.zone].sort((a,b) => a.prorata_growth - b.prorata_growth);
+  document.querySelector('#zoneTable').innerHTML =
+    '<thead><tr><th>Zone</th><th>25-26 Qty</th><th>26-27 Qty</th><th>Pro-Rata Growth</th><th>BAs</th>' +
+    '<th>Focus Accts</th><th>Covered</th><th>Coverage %</th><th>Points %</th><th>Leads</th></tr></thead><tbody>' +
+    zoneSorted.map(z => '<tr><td>'+escapeHtml(z.Zone)+'</td><td class="num">'+fmt(z['25-26_qty'])+'</td>'+
+      '<td class="num">'+fmt(z['26-27_qty'])+'</td><td class="num" style="'+growthStyle(z.prorata_growth)+'">'+pctFmt(z.prorata_growth)+'</td>'+
+      '<td class="num">'+fmt(z.n_ba)+'</td><td class="num">'+fmt(z.focus_accounts)+'</td><td class="num">'+fmt(z.covered)+'</td>'+
+      '<td class="num">'+pctFmt(z.coverage_pct)+'</td><td class="num">'+pctFmt(z.points_pct)+'</td><td class="num">'+fmt(z.leads)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 2: District
+  const distSorted = [...d.district].sort((a,b) => b['26-27_qty'] - a['26-27_qty']);
+  document.querySelector('#districtTrendTable').innerHTML =
+    '<thead><tr><th>District</th><th>25-26 Qty</th><th>26-27 Qty</th><th>Pro-Rata Growth</th><th>BAs</th>' +
+    '<th>Focus Accts</th><th>Covered</th><th>Coverage %</th><th>Points %</th><th>Leads</th></tr></thead><tbody>' +
+    distSorted.map(z => '<tr><td>'+escapeHtml(z.District)+'</td><td class="num">'+fmt(z['25-26_qty'])+'</td>'+
+      '<td class="num">'+fmt(z['26-27_qty'])+'</td><td class="num" style="'+growthStyle(z.prorata_growth)+'">'+pctFmt(z.prorata_growth)+'</td>'+
+      '<td class="num">'+fmt(z.n_ba)+'</td><td class="num">'+fmt(z.focus_accounts)+'</td><td class="num">'+fmt(z.covered)+'</td>'+
+      '<td class="num">'+pctFmt(z.coverage_pct)+'</td><td class="num">'+pctFmt(z.points_pct)+'</td><td class="num">'+fmt(z.leads)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 3: Segment trend
+  const segSorted = [...d.segment].sort((a,b) => a.prorata_growth - b.prorata_growth);
+  document.querySelector('#segmentTrendTable').innerHTML =
+    '<thead><tr><th>BA Segment</th><th>Applicable Inputs</th><th>25-26 Qty</th><th>26-27 Qty</th><th>Pro-Rata Growth</th>' +
+    '<th>BAs</th><th>Focus Accts</th><th>Covered</th><th>Coverage %</th><th>Points %</th><th>Leads</th></tr></thead><tbody>' +
+    segSorted.map(z => '<tr><td>'+escapeHtml(z['BA Segment'])+'</td><td style="font-size:12px;color:var(--ink-soft)">'+escapeHtml(z.applicable_inputs)+'</td>'+
+      '<td class="num">'+fmt(z['25-26_qty'])+'</td><td class="num">'+fmt(z['26-27_qty'])+'</td>'+
+      '<td class="num" style="'+growthStyle(z.prorata_growth)+'">'+pctFmt(z.prorata_growth)+'</td>'+
+      '<td class="num">'+fmt(z.n_ba)+'</td><td class="num">'+fmt(z.focus_accounts)+'</td><td class="num">'+fmt(z.covered)+'</td>'+
+      '<td class="num">'+pctFmt(z.coverage_pct)+'</td><td class="num">'+pctFmt(z.points_pct)+'</td><td class="num">'+fmt(z.leads)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 4: RCA/CAPA
+  const rcaSorted = [...d.rca].sort((a,b) => {
+    const aKey = a.root_cause === 'Misaligned priorities' ? -a.upside_qty : 1e9;
+    const bKey = b.root_cause === 'Misaligned priorities' ? -b.upside_qty : 1e9;
+    return aKey - bKey || a.prorata_growth - b.prorata_growth;
+  });
+  document.querySelector('#rcaTable').innerHTML =
+    '<thead><tr><th>District</th><th>Segment</th><th>Pro-Rata Growth</th><th>Root Cause</th>' +
+    '<th>Upside Potential (Qty)</th><th>Detail (RCA)</th><th>CAPA</th></tr></thead><tbody>' +
+    rcaSorted.map(r => '<tr><td>'+escapeHtml(r.District)+'</td><td>'+escapeHtml(r['BA Segment'])+'</td>'+
+      '<td class="num" style="'+growthStyle(r.prorata_growth)+'">'+pctFmt(r.prorata_growth)+'</td>'+
+      '<td style="background:'+(r.root_cause==='Misaligned priorities'?'#f8d7da':'#fff3cd')+'">'+escapeHtml(r.root_cause)+'</td>'+
+      '<td class="num" style="'+(r.upside_qty>=20000?'background:#d4edda;font-weight:600':'')+'">'+(r.upside_qty>0?fmt(Math.round(r.upside_qty)):'\u2013')+'</td>'+
+      '<td style="text-align:left;font-size:11px;max-width:280px;white-space:normal">'+escapeHtml(r.detail)+'</td>'+
+      '<td style="text-align:left;font-size:11px;max-width:280px;white-space:normal">'+escapeHtml(r.capa)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 4a: sample sizes
+  const sampleSorted = [...d.sample_sizes].sort((a,b) => b.avg_qty - a.avg_qty);
+  document.querySelector('#sampleTable').innerHTML =
+    '<thead><tr><th>BA Segment</th><th>Covered Accounts Observed</th><th>Avg RSM Sale Qty/Account</th><th>Confidence</th></tr></thead><tbody>' +
+    sampleSorted.map(s => '<tr><td>'+escapeHtml(s.segment)+'</td><td class="num">'+fmt(s.n_observed)+'</td>'+
+      '<td class="num">'+fmt(Math.round(s.avg_qty))+'</td><td>'+(s.n_observed<5?'Low (n<5)':s.n_observed<15?'Moderate (n<15)':'Reasonable')+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 5: Retail locality
+  const order5 = ['Hotspot - High value','Hotspot - Medium value','Hotspot - Low value','Area of Interest','Not classified'];
+  const retailSorted = order5.map(cat => d.retail_locality.find(r => r['Locality Category']===cat)).filter(Boolean);
+  document.querySelector('#retailLocTable').innerHTML =
+    '<thead><tr><th>Locality Category</th><th>25-26 Qty</th><th>26-27 Qty</th><th>Pro-Rata Growth</th>' +
+    '<th>Retail BAs</th><th>Focus Accts</th><th>Covered</th><th>Coverage %</th></tr></thead><tbody>' +
+    retailSorted.map(r => '<tr><td>'+escapeHtml(r['Locality Category'])+'</td><td class="num">'+fmt(r['25-26_qty'])+'</td>'+
+      '<td class="num">'+fmt(r['26-27_qty'])+'</td><td class="num" style="'+growthStyle(r.prorata_growth)+'">'+pctFmt(r.prorata_growth)+'</td>'+
+      '<td class="num">'+fmt(r.n_ba)+'</td><td class="num">'+fmt(r.focus_accounts)+'</td><td class="num">'+fmt(r.covered)+'</td>'+
+      '<td class="num">'+pctFmt(r.coverage_pct)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 6: Income band + locality detail
+  const order6 = ['High income area','Medium income area','Low income area'];
+  const incomeSorted = order6.map(b => d.income_band.find(r => r.Income_Band===b)).filter(Boolean);
+  document.querySelector('#incomeBandTable').innerHTML =
+    '<thead><tr><th>Income Band</th><th>25-26 Qty</th><th>26-27 Qty</th><th>Pro-Rata Growth</th>' +
+    '<th>BAs</th><th>Focus Accts</th><th>Covered</th><th>Coverage %</th></tr></thead><tbody>' +
+    incomeSorted.map(r => '<tr><td>'+escapeHtml(r.Income_Band)+'</td><td class="num">'+fmt(r['25-26_qty'])+'</td>'+
+      '<td class="num">'+fmt(r['26-27_qty'])+'</td><td class="num" style="'+growthStyle(r.prorata_growth)+'">'+pctFmt(r.prorata_growth)+'</td>'+
+      '<td class="num">'+fmt(r.n_ba)+'</td><td class="num">'+fmt(r.focus_accounts)+'</td><td class="num">'+fmt(r.covered)+'</td>'+
+      '<td class="num">'+pctFmt(r.coverage_pct)+'</td></tr>').join('') +
+    '</tbody>';
+
+  const localitySorted = [...d.locality_detail].sort((a,b) => b.Price_per_sqft - a.Price_per_sqft);
+  document.querySelector('#localityDetailTable').innerHTML =
+    '<thead><tr><th>Cluster</th><th>City</th><th>Price/sqft</th><th>Income Band</th><th>Confidence</th></tr></thead><tbody>' +
+    localitySorted.map(r => '<tr><td>'+escapeHtml(r.Cluster)+'</td><td>'+escapeHtml(r.City)+'</td>'+
+      '<td class="num">'+fmt(r.Price_per_sqft)+'</td><td>'+escapeHtml(r.Income_Band)+'</td>'+
+      '<td style="font-size:11px;color:var(--ink-soft)">'+escapeHtml(r.Confidence)+'</td></tr>').join('') +
+    '</tbody>';
+
+  // Section 7: Kitchen showrooms
+  document.querySelector('#showroomTable').innerHTML =
+    '<thead><tr><th>Locality</th><th>Income Band</th><th>Price/sqft</th><th>Kitchen Showrooms Present</th></tr></thead><tbody>' +
+    d.kitchen_showrooms.map(r => '<tr><td>'+escapeHtml(r.locality)+'</td><td>'+escapeHtml(r.income_band)+'</td>'+
+      '<td class="num">'+fmt(r.price_per_sqft)+'</td>'+
+      '<td style="text-align:left;font-size:12px;max-width:400px;white-space:normal">'+escapeHtml(r.showrooms.join('; '))+'</td></tr>').join('') +
+    '</tbody>';
 }
 
 init();

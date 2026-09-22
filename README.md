@@ -147,6 +147,30 @@ independently — every one matches exactly (R1: 500 Focus / 5 Covered,
 R2: 382/9, Office Furniture: 136/26, and so on). Grand Total remains
 1,041,399, confirming nothing else was disturbed by this update.
 
+## Focus Coverage filter removed, Segment table achievement columns added
+
+Matching the Excel workbook: the Focus Coverage filter (which had a real bug — comparing a
+number against text — causing every specific selection to show empty) has been removed
+entirely. The Segment table now shows three new columns (Coverage/Points/Leads Param — whether
+that input applies to the segment, per its Sales Driver) plus an Achieved column: Yes only if
+every applicable parameter shows real activity (Coverage % > 0, Points % > 0, Leads > 0).
+
+## Trend & Root Cause Analysis sections added (7 new cards)
+
+Everything from the Excel workbook's "Trend & Root Cause Analysis" sheet, built as static
+pre-computed tables (`gujarat_trend_data.json`) rather than live recomputation from raw rows,
+since the underlying methodology (weighted locality index, RCA classification, upside
+estimation) was built and validated in Python — mirroring it in JS risked subtle drift from the
+Excel figures. Sections: (1) Zone-wise trend, (2) District-wise trend, (3) BA Segment trend,
+(4) Root Cause Analysis / CAPA with Upside Potential (District x Segment, sorted by
+cost-benefit), (4a) sample-size transparency for the upside estimates, (5) Retail
+locality-based analysis using the new weighted Hotspot/Area of Interest classification,
+(6) locality income segmentation (property-price proxy) with full locality detail, (7) kitchen
+showroom competitive-presence data for the 16 High/Medium income localities.
+
+All figures verified against the Excel workbook before publishing (e.g. Ahmedabad/R1 upside =
+162,140 units, Hotspot-Medium growth = +12.1%, matching exactly).
+
 ## Updating the data
 
 Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the

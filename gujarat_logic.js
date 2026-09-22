@@ -61,7 +61,6 @@ function matchesFilters(r, f) {
   if (f.selectedLocalities && f.selectedLocalities.length > 0) {
     if (!f.selectedLocalities.includes(r.cluster)) return false;
   }
-  if (f.focusCoverage !== '(All)' && focusCoverage(r) !== f.focusCoverage) return false;
   return true;
 }
 
@@ -177,7 +176,18 @@ function segmentTable(rows) {
       kopAchieved, kopTarget,
       pointsPct: kopTarget ? kopAchieved / kopTarget : null,
       leads, leadAccts,
+      hasCoverageParam: /coverage/.test(driver),
+      hasPointsParam: /point/.test(driver),
+      hasLeadsParam: /lead/.test(driver),
     });
+  }
+  // achieved: Yes only if every applicable parameter for that segment shows real achievement
+  for (const row of out) {
+    const checks = [];
+    if (row.hasCoverageParam) checks.push((row.coveragePct || 0) > 0);
+    if (row.hasPointsParam) checks.push((row.pointsPct || 0) > 0);
+    if (row.hasLeadsParam) checks.push((row.leads || 0) > 0);
+    row.achieved = checks.length > 0 ? checks.every(c => c) : null;
   }
   return out;
 }
