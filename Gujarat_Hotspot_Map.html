@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gujarat listing hotspots</title>
+<title>Gujarat listing hotspots &amp; income bands</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -12,9 +12,11 @@
  header p{margin:0;font-size:13px;line-height:1.5;color:#57534E;max-width:64ch}
  .wrap{display:flex;flex-direction:column;height:100vh}
  .bar{display:flex;gap:8px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--rule);align-items:center}
+ .bar .sep{width:1px;height:20px;background:var(--rule);margin:0 4px}
  button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--rule);background:#fff;
    border-radius:999px;cursor:pointer;color:#44403C}
  button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+ button.mode[aria-pressed="true"]{background:#0369A1;border-color:#0369A1}
  button:focus-visible{outline:2px solid #0EA5E9;outline-offset:2px}
  #map{flex:1;min-height:420px}
  .legend{background:#fff;padding:12px 14px;border:1px solid var(--rule);border-radius:8px;
@@ -33,31 +35,35 @@
 </style></head><body>
 <div class="wrap">
  <header>
-  <h1>Gujarat &mdash; listing hotspots by value band</h1>
-  <p>Hotspots are ranked within their own city on listing volume, then split by average price per sqft into High,
-     Medium and Low value. Areas of interest lie within 6 km of a High or Medium value hotspot &mdash; a Low value
-     hotspot does not seed one. Blue dots show focus accounts, sized by how many trade there. Positions are
-     approximate locality centres, not surveyed boundaries.</p>
+  <h1 id="pageTitle">Gujarat &mdash; listing hotspots by value band</h1>
+  <p id="pageDesc">Hotspots use a weighted index: 60% sale/rental listing concentration (Gujarat's own sales
+     volume proxy), 20% retail counter concentration, 20% kitchen showroom concentration. Blue dots show focus
+     accounts, sized by how many trade there. Positions are approximate locality centres, not surveyed boundaries.</p>
  </header>
  <div class="bar">
-  <button id="bHigh" aria-pressed="true">High value</button>
-  <button id="bMed" aria-pressed="true">Medium value</button>
-  <button id="bLow" aria-pressed="true">Low value</button>
-  <button id="bAoi" aria-pressed="true">Areas of interest</button>
+  <button class="mode" id="mHotspot" aria-pressed="true">Hotspot view</button>
+  <button class="mode" id="mIncome" aria-pressed="false">Income view</button>
+  <span class="sep"></span>
+  <button id="bHigh" aria-pressed="true">High</button>
+  <button id="bMed" aria-pressed="true">Medium</button>
+  <button id="bLow" aria-pressed="true">Low</button>
+  <button id="bAoi" aria-pressed="true">Area of interest / no data</button>
   <button id="bFocus" aria-pressed="true">Focus accounts</button>
+  <span class="sep"></span>
   <button id="bAhm">Ahmedabad</button>
   <button id="bSur">Surat</button>
   <button id="bAll">Fit all</button>
  </div>
  <div id="map"></div>
- <footer>28 classified localities placed. Focus and sale quantity figures cover 23-24 to 26-27.</footer>
+ <footer id="pageFooter">28 classified localities placed. Focus and sale quantity figures cover 23-24 to 26-27.</footer>
 </div>
 <script>
-const D = [{"loc":"Gota","city":"Ahmedabad","cat":"Hotspot - Medium value","band":"Medium","level":"Locality","listings":594,"rate":5492,"km":null,"focus":35,"devs":["Shilp Group","Siddharth Group","Bhavya Group","Aaryan Procon","Shukan Group","Kopren Group","Ganesh Housing","Savaliya Builders","Goyal and Company","Bakeri Group"],"lat":23.103,"lng":72.545},{"loc":"Satellite","city":"Ahmedabad","cat":"Area of Interest","band":"Medium","level":"Locality","listings":null,"rate":7500,"km":5.3,"focus":24,"devs":[],"lat":23.029,"lng":72.515},{"loc":"Sola","city":"Ahmedabad","cat":"Hotspot - High value","band":"High","level":"Locality","listings":301,"rate":10743,"km":null,"focus":19,"devs":["Ganesh Housing","Goyal and Company","Bakeri Group","Shilp Group","Savaliya Builders","Aaryan Procon","Siddharth Group","Shukan Group","Bhavya Group","Kopren Group"],"lat":23.076,"lng":72.521},{"loc":"Bodakdev","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.3,"focus":13,"devs":[],"lat":23.04,"lng":72.507},{"loc":"Thaltej","city":"Ahmedabad","cat":"Area of Interest","band":"High","level":"Locality","listings":null,"rate":8100,"km":3.4,"focus":10,"devs":[],"lat":23.049,"lng":72.506},{"loc":"Chandkheda","city":"Ahmedabad","cat":"Hotspot - Low value","band":"Low","level":"Locality","listings":691,"rate":4670,"km":null,"focus":9,"devs":["Ganesh Housing","Savaliya Builders","Goyal and Company","Bakeri Group","Shilp Group","Siddharth Group","Aaryan Procon","Shukan Group","Bhavya Group","Kopren Group"],"lat":23.112,"lng":72.582},{"loc":"Chandlodia","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":1.4,"focus":9,"devs":[],"lat":23.09,"lng":72.545},{"loc":"Ghatlodia","city":"Ahmedabad","cat":"Area of Interest","band":"Medium","level":"Locality","listings":null,"rate":5770,"km":3,"focus":7,"devs":[],"lat":23.064,"lng":72.547},{"loc":"New Ranip","city":"Ahmedabad","cat":"Area of Interest","band":"Low","level":"Locality","listings":222,"rate":4468,"km":3,"focus":6,"devs":[],"lat":23.085,"lng":72.567},{"loc":"Memnagar","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3,"focus":4,"devs":[],"lat":23.055,"lng":72.539},{"loc":"Sabarmati","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.5,"focus":4,"devs":[],"lat":23.078,"lng":72.58},{"loc":"Naranpura","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.3,"focus":3,"devs":[],"lat":23.057,"lng":72.558},{"loc":"Vastrapur","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.4,"focus":3,"devs":[],"lat":23.037,"lng":72.529},{"loc":"Bhadaj","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3.3,"focus":2,"devs":[],"lat":23.085,"lng":72.49},{"loc":"Jodhpur Cross Road","city":"Ahmedabad","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":5.9,"focus":1,"devs":[],"lat":23.023,"lng":72.515},{"loc":"U.M.Road","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":1.8,"focus":95,"devs":[],"lat":21.181,"lng":72.805},{"loc":"Bhatar","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3.5,"focus":52,"devs":[],"lat":21.165,"lng":72.81},{"loc":"Adajan","city":"Surat","cat":"Hotspot - Medium value","band":"Medium","level":"Locality","listings":212,"rate":5916,"km":null,"focus":23,"devs":["Manidhara Realty","Sahajanand Reality","Raghuvir Developers","Avadh Group","Shree Organizers","Trilok Developers","KKB Realty","Murlidhar Associates","Ashtalaxmi Infra","Arjun Empire"],"lat":21.19,"lng":72.79},{"loc":"Katargam","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":5.3,"focus":19,"devs":[],"lat":21.225,"lng":72.825},{"loc":"U M Road","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":1.8,"focus":11,"devs":[],"lat":21.181,"lng":72.805},{"loc":"Vesu","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":5.5,"focus":10,"devs":[],"lat":21.144,"lng":72.771},{"loc":"Bamroli","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.6,"focus":8,"devs":[],"lat":21.15,"lng":72.8},{"loc":"Bhagal","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.2,"focus":7,"devs":[],"lat":21.195,"lng":72.83},{"loc":"Ring Road","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3.2,"focus":3,"devs":[],"lat":21.195,"lng":72.82},{"loc":"Pal","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":2.4,"focus":1,"devs":[],"lat":21.18,"lng":72.77},{"loc":"Nanpura","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3.6,"focus":1,"devs":[],"lat":21.19,"lng":72.825},{"loc":"Bamroli Road","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":4.6,"focus":1,"devs":[],"lat":21.15,"lng":72.8},{"loc":"Ved Road","city":"Surat","cat":"Area of Interest","band":"","level":"Locality","listings":null,"rate":null,"km":3.9,"focus":1,"devs":[],"lat":21.22,"lng":72.81}];
+const D = [{"loc": "Bamroli Road", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.6, "focus": 1, "devs": [], "lat": 21.15, "lng": 72.8}, {"loc": "Adajan", "city": "Surat", "cat": "Hotspot - High value", "band": "High", "income_band": "Medium income area", "price_per_sqft": 3950.0, "listings": 212, "rate": 5916, "km": null, "focus": 23, "devs": ["Manidhara Realty", "Sahajanand Reality", "Raghuvir Developers", "Avadh Group", "Shree Organizers", "Trilok Developers", "KKB Realty", "Murlidhar Associates", "Ashtalaxmi Infra", "Arjun Empire"], "lat": 21.19, "lng": 72.79}, {"loc": "Memnagar", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 3, "focus": 4, "devs": [], "lat": 23.055, "lng": 72.539}, {"loc": "Pal", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 2.4, "focus": 1, "devs": [], "lat": 21.18, "lng": 72.77}, {"loc": "Ved Road", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 3.9, "focus": 1, "devs": [], "lat": 21.22, "lng": 72.81}, {"loc": "Gota", "city": "Ahmedabad", "cat": "Hotspot - High value", "band": "High", "income_band": "High income area", "price_per_sqft": 4700.0, "listings": 594, "rate": 5492, "km": null, "focus": 35, "devs": ["Shilp Group", "Siddharth Group", "Bhavya Group", "Aaryan Procon", "Shukan Group", "Kopren Group", "Ganesh Housing", "Savaliya Builders", "Goyal and Company", "Bakeri Group"], "lat": 23.103, "lng": 72.545}, {"loc": "Vastrapur", "city": "Ahmedabad", "cat": "Hotspot - Low value", "band": "Low", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.4, "focus": 3, "devs": [], "lat": 23.037, "lng": 72.529}, {"loc": "U M Road", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 1.8, "focus": 11, "devs": [], "lat": 21.181, "lng": 72.805}, {"loc": "Thaltej", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": 8100, "km": 3.4, "focus": 10, "devs": [], "lat": 23.049, "lng": 72.506}, {"loc": "Sabarmati", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.5, "focus": 4, "devs": [], "lat": 23.078, "lng": 72.58}, {"loc": "Bhadaj", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 3.3, "focus": 2, "devs": [], "lat": 23.085, "lng": 72.49}, {"loc": "Chandkheda", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": 691, "rate": 4670, "km": null, "focus": 9, "devs": ["Ganesh Housing", "Savaliya Builders", "Goyal and Company", "Bakeri Group", "Shilp Group", "Siddharth Group", "Aaryan Procon", "Shukan Group", "Bhavya Group", "Kopren Group"], "lat": 23.112, "lng": 72.582}, {"loc": "Bhatar", "city": "Surat", "cat": "Hotspot - Medium value", "band": "Medium", "income_band": "High income area", "price_per_sqft": 5200.0, "listings": null, "rate": null, "km": 3.5, "focus": 52, "devs": [], "lat": 21.165, "lng": 72.81}, {"loc": "Naranpura", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.3, "focus": 3, "devs": [], "lat": 23.057, "lng": 72.558}, {"loc": "Satellite", "city": "Ahmedabad", "cat": "Hotspot - High value", "band": "High", "income_band": "High income area", "price_per_sqft": 8150.0, "listings": null, "rate": 7500, "km": 5.3, "focus": 24, "devs": [], "lat": 23.029, "lng": 72.515}, {"loc": "New Ranip", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": 222, "rate": 4468, "km": 3, "focus": 6, "devs": [], "lat": 23.085, "lng": 72.567}, {"loc": "Bodakdev", "city": "Ahmedabad", "cat": "Hotspot - Medium value", "band": "Medium", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.3, "focus": 13, "devs": [], "lat": 23.04, "lng": 72.507}, {"loc": "Ghatlodia", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": 5770, "km": 3, "focus": 7, "devs": [], "lat": 23.064, "lng": 72.547}, {"loc": "Vesu", "city": "Surat", "cat": "Hotspot - Medium value", "band": "Medium", "income_band": "High income area", "price_per_sqft": 5600.0, "listings": null, "rate": null, "km": 5.5, "focus": 10, "devs": [], "lat": 21.144, "lng": 72.771}, {"loc": "Bhagal", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 4.2, "focus": 7, "devs": [], "lat": 21.195, "lng": 72.83}, {"loc": "Katargam", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 5.3, "focus": 19, "devs": [], "lat": 21.225, "lng": 72.825}, {"loc": "Jodhpur Cross Road", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": "High income area", "price_per_sqft": 6500.0, "listings": null, "rate": null, "km": 5.9, "focus": 1, "devs": [], "lat": 23.023, "lng": 72.515}, {"loc": "Sola", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": "Medium income area", "price_per_sqft": 4200.0, "listings": 301, "rate": 10743, "km": null, "focus": 19, "devs": ["Ganesh Housing", "Goyal and Company", "Bakeri Group", "Shilp Group", "Savaliya Builders", "Aaryan Procon", "Siddharth Group", "Shukan Group", "Bhavya Group", "Kopren Group"], "lat": 23.076, "lng": 72.521}, {"loc": "Ring Road", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": "High income area", "price_per_sqft": 5500.0, "listings": null, "rate": null, "km": 3.2, "focus": 3, "devs": [], "lat": 21.195, "lng": 72.82}, {"loc": "Chandlodia", "city": "Ahmedabad", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 1.4, "focus": 9, "devs": [], "lat": 23.09, "lng": 72.545}, {"loc": "Bamroli", "city": "Surat", "cat": "Hotspot - Low value", "band": "Low", "income_band": "Low income area", "price_per_sqft": 2600.0, "listings": null, "rate": null, "km": 4.6, "focus": 8, "devs": [], "lat": 21.15, "lng": 72.8}, {"loc": "Nanpura", "city": "Surat", "cat": "Area of Interest", "band": "AOI", "income_band": null, "price_per_sqft": null, "listings": null, "rate": null, "km": 3.6, "focus": 1, "devs": [], "lat": 21.19, "lng": 72.825}, {"loc": "U.M.Road", "city": "Surat", "cat": "Hotspot - Low value", "band": "Low", "income_band": "Medium income area", "price_per_sqft": 3600.0, "listings": null, "rate": null, "km": 1.8, "focus": 95, "devs": [], "lat": 21.181, "lng": 72.805}];
 const map = L.map('map', {scrollWheelZoom:true}).setView([22.6,72.7],9);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   {maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 
+let MODE = 'hotspot'; // 'hotspot' | 'income'
 const layers = {
   High:  L.layerGroup().addTo(map),
   Medium:L.layerGroup().addTo(map),
@@ -65,75 +71,143 @@ const layers = {
   AOI:   L.layerGroup().addTo(map),
   Focus: L.layerGroup().addTo(map)
 };
-const STYLE = {
+const HOTSPOT_STYLE = {
   High:  {c:'#B91C1C', f:.42, w:3, dash:null,    r:2200},
   Medium:{c:'#F59E0B', f:.34, w:3, dash:'6,4',   r:1900},
   Low:   {c:'#78716C', f:.22, w:2, dash:'2,5',   r:1600},
   AOI:   {c:'#15803D', f:.12, w:1.5,dash:null,   r:1300}
 };
+const INCOME_STYLE = {
+  High:  {c:'#6D28D9', f:.42, w:3, dash:null,    r:2200},
+  Medium:{c:'#2563EB', f:.34, w:3, dash:'6,4',   r:1900},
+  Low:   {c:'#0891B2', f:.22, w:2, dash:'2,5',   r:1600},
+  AOI:   {c:'#A8A29E', f:.10, w:1.5,dash:'2,5',  r:1300}
+};
 const fmt = n => (n||0).toLocaleString('en-IN');
+
+function incomeKey(d) {
+  if (!d.income_band) return 'AOI';
+  if (d.income_band.indexOf('High') === 0) return 'High';
+  if (d.income_band.indexOf('Medium') === 0) return 'Medium';
+  return 'Low';
+}
+function hotspotKey(d) {
+  return d.cat.indexOf('Hotspot') === 0 ? (d.band || 'Low') : 'AOI';
+}
+function keyFor(d) { return MODE === 'hotspot' ? hotspotKey(d) : incomeKey(d); }
+function styleFor() { return MODE === 'hotspot' ? HOTSPOT_STYLE : INCOME_STYLE; }
 
 function popup(d){
   const devs = (d.devs && d.devs.length)
     ? '<ol>' + d.devs.slice(0,10).map(x => '<li>'+x+'</li>').join('') + '</ol>'
     : '<div style="font-size:12px;color:#78716C">Developer list not pulled yet</div>';
-  return '<div class="pop"><h3>'+d.loc+'</h3><div class="meta">'+d.city+' &middot; '+d.cat+'</div>'+
+  return '<div class="pop"><h3>'+d.loc+'</h3><div class="meta">'+d.city+' &middot; '+d.cat+
+    (d.income_band ? ' &middot; '+d.income_band : ' &middot; no income data')+'</div>'+
     '<table>'+
-    (d.listings ? '<tr><td>Listings for sale</td><td>'+fmt(d.listings)+'</td></tr>' : '<tr><td>Listings</td><td>not pulled</td></tr>')+
-    (d.rate ? '<tr><td>Avg Rs/sqft</td><td>'+fmt(d.rate)+'</td></tr>' : '')+
+    (d.price_per_sqft ? '<tr><td>Property price/sqft</td><td>Rs '+fmt(d.price_per_sqft)+'</td></tr>' : '')+
+    (d.listings ? '<tr><td>Listings for sale</td><td>'+fmt(d.listings)+'</td></tr>' : '')+
+    (d.rate ? '<tr><td>Avg Rs/sqft (listing study)</td><td>'+fmt(d.rate)+'</td></tr>' : '')+
     (d.focus ? '<tr><td>Focus accounts</td><td>'+fmt(d.focus)+'</td></tr>' : '')+
     (d.km ? '<tr><td>Km to hotspot</td><td>'+d.km+'</td></tr>' : '')+
     '</table><b style="font-size:12px">Lead developers</b>'+devs+'</div>';
 }
 
-D.forEach(d => {
-  const isHot = d.cat.indexOf('Hotspot') === 0;
-  const key = isHot ? (d.band || 'Low') : 'AOI';
-  const s = STYLE[key];
-  L.circle([d.lat, d.lng], {radius:s.r, color:s.c, weight:s.w, opacity:.95, dashArray:s.dash,
-    fillColor:s.c, fillOpacity:s.f}).bindPopup(popup(d)).addTo(layers[key]);
-  if (isHot) {
-    L.marker([d.lat, d.lng], {icon: L.divIcon({className:'', iconSize:[74,20],
-      html:'<div style="background:'+s.c+';color:#fff;font:600 10px/20px Inter,sans-serif;'+
-           'text-align:center;border-radius:10px;white-space:nowrap;padding:0 6px">'+key+' value</div>'})})
-      .bindPopup(popup(d)).addTo(layers[key]);
-  }
-  if (d.focus > 0) {
-    L.circleMarker([d.lat, d.lng], {radius:Math.max(4, Math.sqrt(d.focus)*2.1),
-      color:'#1E3A8A', weight:1, fillColor:'#1D4ED8', fillOpacity:.85})
-      .bindPopup(popup(d)).addTo(layers.Focus);
-  }
-});
+let circleLayers = [], labelLayers = [];
+function drawMarkers() {
+  circleLayers.forEach(c => c.remove());
+  labelLayers.forEach(c => c.remove());
+  circleLayers = []; labelLayers = [];
+  Object.values(layers).forEach(l => l.clearLayers());
+  const S = styleFor();
+  D.forEach(d => {
+    const key = keyFor(d);
+    const s = S[key];
+    const c = L.circle([d.lat, d.lng], {radius:s.r, color:s.c, weight:s.w, opacity:.95, dashArray:s.dash,
+      fillColor:s.c, fillOpacity:s.f}).bindPopup(popup(d)).addTo(layers[key]);
+    circleLayers.push(c);
+    if (key !== 'AOI') {
+      const lbl = L.marker([d.lat, d.lng], {icon: L.divIcon({className:'', iconSize:[90,20],
+        html:'<div style="background:'+s.c+';color:#fff;font:600 10px/20px Inter,sans-serif;'+
+             'text-align:center;border-radius:10px;white-space:nowrap;padding:0 6px">'+key+' '+(MODE==='hotspot'?'value':'income')+'</div>'})})
+        .bindPopup(popup(d)).addTo(layers[key]);
+      labelLayers.push(lbl);
+    }
+    if (d.focus > 0) {
+      const fc = L.circleMarker([d.lat, d.lng], {radius:Math.max(4, Math.sqrt(d.focus)*2.1),
+        color:'#1E3A8A', weight:1, fillColor:'#1D4ED8', fillOpacity:.85})
+        .bindPopup(popup(d)).addTo(layers.Focus);
+      circleLayers.push(fc);
+    }
+  });
+}
+drawMarkers();
 
 const legend = L.control({position:'bottomright'});
 legend.onAdd = function(){
   const el = L.DomUtil.create('div','legend');
-  el.innerHTML = '<b>Legend</b>'+
-    '<span class="sw" style="background:#B91C1C;opacity:.7"></span>Hotspot &mdash; high value<br>'+
-    '<span class="sw" style="background:#F59E0B;opacity:.7"></span>Hotspot &mdash; medium value<br>'+
-    '<span class="sw" style="background:#78716C;opacity:.55"></span>Hotspot &mdash; low value<br>'+
-    '<span class="sw" style="background:#15803D;opacity:.4"></span>Area of interest<br>'+
-    '<span class="dot" style="width:8px;height:8px"></span>Focus accounts &mdash; few<br>'+
-    '<span class="dot" style="width:16px;height:16px"></span>Focus accounts &mdash; many';
+  el.id = 'legendBox';
   return el;
 };
 legend.addTo(map);
+function updateLegend() {
+  const el = document.getElementById('legendBox');
+  if (MODE === 'hotspot') {
+    el.innerHTML = '<b>Legend — Hotspot value</b>'+
+      '<span class="sw" style="background:#B91C1C;opacity:.7"></span>High value<br>'+
+      '<span class="sw" style="background:#F59E0B;opacity:.7"></span>Medium value<br>'+
+      '<span class="sw" style="background:#78716C;opacity:.55"></span>Low value<br>'+
+      '<span class="sw" style="background:#15803D;opacity:.4"></span>Area of interest<br>'+
+      '<span class="dot" style="width:8px;height:8px"></span>Focus accounts &mdash; few<br>'+
+      '<span class="dot" style="width:16px;height:16px"></span>Focus accounts &mdash; many';
+  } else {
+    el.innerHTML = '<b>Legend — Income band</b>'+
+      '<span class="sw" style="background:#6D28D9;opacity:.7"></span>High income area<br>'+
+      '<span class="sw" style="background:#2563EB;opacity:.7"></span>Medium income area<br>'+
+      '<span class="sw" style="background:#0891B2;opacity:.55"></span>Low income area<br>'+
+      '<span class="sw" style="background:#A8A29E;opacity:.35"></span>No income data researched<br>'+
+      '<span class="dot" style="width:8px;height:8px"></span>Focus accounts &mdash; few<br>'+
+      '<span class="dot" style="width:16px;height:16px"></span>Focus accounts &mdash; many';
+  }
+}
+updateLegend();
 
-function tog(id, layer){
+function setMode(mode) {
+  MODE = mode;
+  document.getElementById('mHotspot').setAttribute('aria-pressed', String(mode==='hotspot'));
+  document.getElementById('mIncome').setAttribute('aria-pressed', String(mode==='income'));
+  document.getElementById('pageTitle').textContent = mode === 'hotspot'
+    ? 'Gujarat \u2014 listing hotspots by value band'
+    : 'Gujarat \u2014 locality income bands (property-price proxy)';
+  document.getElementById('pageDesc').textContent = mode === 'hotspot'
+    ? "Hotspots use a weighted index: 60% sale/rental listing concentration (Gujarat's own sales volume proxy), 20% retail counter concentration, 20% kitchen showroom concentration. Blue dots show focus accounts, sized by how many trade there."
+    : 'Income bands are a property-price proxy (2026), not official income data - MoSPI has no true locality-level figures. Researched for 26 of the highest-volume localities only; others show as no-data grey. Blue dots show focus accounts.';
+  document.getElementById('bAoi').textContent = mode === 'hotspot' ? 'Area of interest' : 'No income data';
+  drawMarkers();
+  updateLegend();
+  ['High','Medium','Low','AOI'].forEach(k => {
+    const btn = {High:'bHigh',Medium:'bMed',Low:'bLow',AOI:'bAoi'}[k];
+    if (document.getElementById(btn).getAttribute('aria-pressed') === 'false') map.removeLayer(layers[k]);
+  });
+}
+
+function tog(id, key){
   const b = document.getElementById(id);
   b.addEventListener('click', () => {
     const on = b.getAttribute('aria-pressed') === 'true';
     b.setAttribute('aria-pressed', String(!on));
-    if (on) { map.removeLayer(layer) } else { map.addLayer(layer) }
+    if (on) { map.removeLayer(layers[key]) } else { map.addLayer(layers[key]) }
   });
 }
-tog('bHigh', layers.High);
-tog('bMed', layers.Medium);
-tog('bLow', layers.Low);
-tog('bAoi', layers.AOI);
-tog('bFocus', layers.Focus);
+tog('bHigh', 'High');
+tog('bMed', 'Medium');
+tog('bLow', 'Low');
+tog('bAoi', 'AOI');
+tog('bFocus', 'Focus');
+document.getElementById('mHotspot').onclick = () => setMode('hotspot');
+document.getElementById('mIncome').onclick = () => setMode('income');
 document.getElementById('bAhm').onclick = () => map.setView([23.03,72.57],11.5);
 document.getElementById('bSur').onclick = () => map.setView([21.19,72.82],11.5);
 document.getElementById('bAll').onclick = () => map.fitBounds(L.latLngBounds(D.map(d => [d.lat,d.lng])).pad(.15));
 map.fitBounds(L.latLngBounds(D.map(d => [d.lat,d.lng])).pad(.15));
-</script></body></html>
+</script>
+</body></html>

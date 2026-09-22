@@ -171,6 +171,18 @@ showroom competitive-presence data for the 16 High/Medium income localities.
 All figures verified against the Excel workbook before publishing (e.g. Ahmedabad/R1 upside =
 162,140 units, Hotspot-Medium growth = +12.1%, matching exactly).
 
+## Map refreshed with new Hotspot classification, income view added
+
+The map (`Gujarat_Hotspot_Map.html`) previously showed the *old* listing-only Hotspot
+classification (Sola as High value, Adajan as Medium value) — it had not been touched since the
+weighted reclassification was applied to the Excel workbook. It's now refreshed to match, and a
+new "Income view" toggle has been added alongside the existing "Hotspot view" — same 28
+localities, same map, but switching the button re-colors every marker by income band
+(property-price proxy) instead of Hotspot category, with its own legend and description text.
+Only 10 of these 28 localities have income data (from a separate, sales-volume-based research
+set) — the rest show as neutral grey with "no income data researched" in the popup, rather than
+guessing.
+
 ## Updating the data
 
 Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the
