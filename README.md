@@ -183,6 +183,49 @@ Only 10 of these 28 localities have income data (from a separate, sales-volume-b
 set) — the rest show as neutral grey with "no income data researched" in the popup, rather than
 guessing.
 
+## RSM Review refresh card added
+
+A new card at the top of the page lets you upload a new RSM Review file (.xlsb or .xlsx) directly
+in the browser to refresh Focus Coverage / Sale Qty figures the District and Segment tables show
+&mdash; without coming back to Claude first. It reuses the same matching approach as the RSM
+Review Validator tool built earlier: parses the "Secondary Data" sheet, lets you confirm which
+Branch/FY-label/Month range represents "current" data (the file's own FY label doesn't reliably
+match the calendar year), matches GSTINs against the accounts already loaded on this page, and
+reports unmatched ones with a search-and-correct UI.
+
+**Important distinction: this updates the page only, not the Excel workbook.** Bring the same
+file to Claude separately if you also want the workbook itself regenerated - the two will
+otherwise drift apart.
+
+**On persistence across reloads:** the refresh is designed to save via this artifact's own `db`
+storage, so it survives a page reload. That only works if this page is opened as a Claude-hosted
+artifact (published through Claude), not when self-hosted from this zip on your own server or
+file system - self-hosted, the refresh still works, but resets to the workbook's original figures
+on every reload. Ask Claude to publish a hosted version if you want the refresh to persist.
+
+Verified: ran the actual matching logic against a real RSM Review file's Gujarat data (7,731
+rows, 90 distinct GSTINs) - got 80 matched / 10 unmatched, an exact match to manual verification
+done earlier in this project, and confirmed the matched Sale Qty figures correctly propagate into
+each account's row before the District/Segment tables recompute.
+
+## Lead pipeline added to the map, plus a dead button fixed
+
+**New "Focus Account leads (by locality)" layer** — purple markers sized by lead volume, built
+from Gujarat_Lead_Pipeline_Relationships.xlsx (per-account data, GST-matched to each Focus
+Account's Cluster), same approach used for Pune's equivalent map layer. Independently toggleable.
+Geocoded 20 additional localities not previously on the map, prioritized by lead volume (Varachha
+Road, Halol Road, Adalaj, Ichhapore, Bopal and others). Covers 548 of 650 leads and 126 of 180
+Focus Accounts with lead activity (84% and 70% respectively) - the remaining, smaller-volume
+localities are not yet geocoded.
+
+**A real, pre-existing bug fixed along the way:** the map already had a "Lead Pipeline (by Zone)"
+button and a ZONE_D data array (Sales Officer-level pipeline totals from Project Review Data -
+West I, aggregated by zone) from earlier work - but no rendering logic anywhere in the script ever
+used that data. The button did nothing. Now wired up as its own layer (amber markers at each
+zone's centre, sized by new-lead count), so both the locality-level (per-account) and zone-level
+(per-SO) pipeline views are genuinely functional side by side, clearly distinguished by color and
+by what each actually measures.
+
 ## Updating the data
 
 Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the

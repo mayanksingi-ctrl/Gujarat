@@ -57,6 +57,17 @@
   .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent);
              border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+  .row { display: flex; align-items: center; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.good { background: #EAF6EE; color: #15803D; }
+  .pill.bad { background: #FDECEC; color: #B91C1C; }
+  #rsmUnmatchedTable input[type=text] { font: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; width: 160px; }
+  .rsm-search-results { position: absolute; background: var(--paper); border: 1px solid var(--line); border-radius: 6px;
+    max-height: 160px; overflow-y: auto; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+  .rsm-search-results div { padding: 5px 9px; font-size: 12px; cursor: pointer; }
+  .rsm-search-results div:hover { background: #F0F4F1; }
+  tr.rsm-corrected { background: #EAF6EE; }
 </style>
 </head>
 <body>
@@ -73,6 +84,37 @@
     <div style="font-size:10px;color:var(--ink-soft)">build 2026-09-15-c</div>
   </div>
 </header>
+
+<div class="card" id="rsmRefreshCard" style="margin:16px 20px 0">
+  <h2>Refresh Focus Coverage from a new RSM Review file</h2>
+  <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">
+    Upload the latest RSM Review file (.xlsb or .xlsx) to update Coverage/Sale Qty figures below with fresh
+    data. This updates what this page displays only &mdash; it does not change the Gujarat Excel workbook;
+    bring the same file to Claude in chat separately to update that too. Refreshed data is saved for this
+    page and persists across reloads until you refresh again or reset.
+  </div>
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <input type="file" id="rsmFileInput" accept=".xlsb,.xlsx,.xls" style="font-size:12px">
+    <span id="rsmStatus" style="font-size:12px;color:var(--ink-soft)"></span>
+  </div>
+  <div id="rsmScopeRow" class="hidden" style="margin-bottom:8px;font-size:12px">
+    <label>Branch: <select id="rsmBranchSelect"></select></label>
+    <label style="margin-left:10px">FY label: <select id="rsmFySelect"></select></label>
+    <label style="margin-left:10px">Months: <select id="rsmMonthMin"></select> to <select id="rsmMonthMax"></select></label>
+    <button id="rsmRunBtn" style="margin-left:10px">Check matches</button>
+  </div>
+  <div id="rsmResultsRow" class="hidden" style="margin-bottom:8px">
+    <span class="pill good" id="rsmMatchedPill"></span>
+    <span class="pill bad hidden" id="rsmUnmatchedPill"></span>
+    <button class="primary" id="rsmApplyBtn" style="margin-left:10px">Apply refresh</button>
+    <button id="rsmResetBtn" style="margin-left:6px">Reset to baseline</button>
+  </div>
+  <div id="rsmUnmatchedSection" class="hidden">
+    <div style="font-size:12px;color:var(--ink-soft);margin:8px 0 4px">Unmatched GSTINs &mdash; search and pick the right account, or leave unmatched to exclude:</div>
+    <div class="scroll-table" style="max-height:240px"><table id="rsmUnmatchedTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+  <div id="rsmAppliedNote" style="font-size:12px;color:var(--good);margin-top:6px;font-weight:600"></div>
+</div>
 
 <div class="filters" id="filterBar"></div>
 
@@ -267,6 +309,7 @@ async function init() {
     document.getElementById('asOfDate').addEventListener('change', render);
     render();
     renderTrendSections();
+    await initRsmRefresh();
     document.getElementById('loadingOverlay').style.display = 'none';
   } catch (err) {
     showError(err);
@@ -663,6 +706,212 @@ function renderTrendSections() {
       '<td class="num">'+fmt(r.price_per_sqft)+'</td>'+
       '<td style="text-align:left;font-size:12px;max-width:400px;white-space:normal">'+escapeHtml(r.showrooms.join('; '))+'</td></tr>').join('') +
     '</tbody>';
+}
+
+// ============================================================================
+// RSM Review refresh: upload a new RSM Review file to update Coverage/Sale Qty
+// on this page only (does not touch the Excel workbook).
+// ============================================================================
+let RSM_PARSED_ROWS = null;
+let RSM_MATCH_RESULT = null;
+let RSM_CORRECTIONS = {};
+let RSM_DB = null;
+let BASELINE_RSM = null; // snapshot of original rsmSaleQty per gstin, for reset
+
+function rsmSetStatus(msg) { document.getElementById('rsmStatus').textContent = msg; }
+
+async function initRsmRefresh() {
+  BASELINE_RSM = new Map(ROWS.map(r => [r.gstin, r.rsmSaleQty]));
+  try {
+    RSM_DB = await claude.use('db');
+    if (RSM_DB) {
+      const doc = await RSM_DB.doc('rsm_refresh/latest').get();
+      const data = doc.data();
+      if (data && data.accounts) {
+        applyRsmAccounts(data.accounts, false);
+        document.getElementById('rsmAppliedNote').textContent =
+          'Showing data refreshed ' + new Date(data.appliedAt).toLocaleString() + ' (FY ' + data.fyLabel + ')';
+      }
+      const corrDoc = await RSM_DB.doc('rsm_refresh/corrections').get();
+      const corrData = corrDoc.data();
+      if (corrData && corrData.map) RSM_CORRECTIONS = corrData.map;
+    }
+  } catch (e) { /* db unavailable or no prior refresh - start fresh */ }
+
+  document.getElementById('rsmFileInput').addEventListener('change', (e) => {
+    if (e.target.files[0]) handleRsmFile(e.target.files[0]);
+  });
+  document.getElementById('rsmRunBtn').addEventListener('click', runRsmMatching);
+  document.getElementById('rsmApplyBtn').addEventListener('click', applyRsmRefresh);
+  document.getElementById('rsmResetBtn').addEventListener('click', resetRsmRefresh);
+}
+
+async function handleRsmFile(file) {
+  rsmSetStatus('Reading ' + file.name + '\u2026');
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheetName = wb.SheetNames.find(n => n.toLowerCase().replace(/\s/g,'') === 'secondarydata')
+      || wb.SheetNames.find(n => n.toLowerCase().includes('secondary'));
+    if (!sheetName) { rsmSetStatus('No "Secondary Data" sheet found in this file.'); return; }
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: null });
+    if (rows.length === 0) { rsmSetStatus('Sheet appears empty.'); return; }
+    const sampleKeys = Object.keys(rows[0]);
+    const gstCol = sampleKeys.find(k => k.toLowerCase().includes('gst')) || 'Sheet1.DB GST';
+    if (!sampleKeys.includes(gstCol)) { rsmSetStatus('No GST column found - cannot match.'); return; }
+    RSM_PARSED_ROWS = rows.map(r => ({ ...r, __gstCol: gstCol }));
+    rsmSetStatus(rows.length.toLocaleString() + ' rows read. Confirm scope below.');
+    populateRsmScope();
+  } catch (err) {
+    rsmSetStatus('Error parsing file: ' + err.message + '. If this is .xlsb, try converting to .xlsx first.');
+  }
+}
+
+function populateRsmScope() {
+  const branches = [...new Set(RSM_PARSED_ROWS.map(r => r.F_Branch).filter(Boolean))].sort();
+  const fys = [...new Set(RSM_PARSED_ROWS.map(r => r.FY).filter(Boolean))].sort();
+  const months = [...new Set(RSM_PARSED_ROWS.map(r => r.Month).filter(v => v !== null && v !== undefined))].sort((a,b)=>a-b);
+  const bSel = document.getElementById('rsmBranchSelect');
+  bSel.innerHTML = branches.map(b => '<option value="'+b+'" '+(b==='Gujarat'?'selected':'')+'>'+b+'</option>').join('');
+  const fSel = document.getElementById('rsmFySelect');
+  fSel.innerHTML = fys.map(f => '<option value="'+f+'">'+f+'</option>').join('');
+  const mMinSel = document.getElementById('rsmMonthMin'), mMaxSel = document.getElementById('rsmMonthMax');
+  const mOpts = months.map(m => '<option value="'+m+'">'+m+'</option>').join('');
+  mMinSel.innerHTML = mOpts; mMaxSel.innerHTML = mOpts;
+  if (months.length) { mMinSel.value = months[0]; mMaxSel.value = months[months.length-1]; }
+  document.getElementById('rsmScopeRow').classList.remove('hidden');
+}
+
+function normGst(v) { return v === null || v === undefined ? '' : String(v).trim().toUpperCase(); }
+
+function rsmNameSimilarity(a, b) {
+  const ta = new Set(String(a||'').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean));
+  const tb = new Set(String(b||'').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean));
+  if (!ta.size || !tb.size) return 0;
+  let inter = 0; ta.forEach(t => { if (tb.has(t)) inter++; });
+  return inter / Math.max(ta.size, tb.size);
+}
+
+function runRsmMatching() {
+  const branch = document.getElementById('rsmBranchSelect').value;
+  const fy = document.getElementById('rsmFySelect').value;
+  const mMin = Number(document.getElementById('rsmMonthMin').value);
+  const mMax = Number(document.getElementById('rsmMonthMax').value);
+  const subset = RSM_PARSED_ROWS.filter(r => r.F_Branch === branch && r.FY === fy &&
+    Number(r.Month) >= mMin && Number(r.Month) <= mMax);
+
+  const byGst = new Map();
+  for (const r of subset) {
+    const gst = normGst(r[r.__gstCol]);
+    if (!gst) continue;
+    if (!byGst.has(gst)) byGst.set(gst, { rawGstin: gst, qty: 0, value: 0, pts: 0 });
+    const agg = byGst.get(gst);
+    agg.qty += Number(r.QTY) || 0;
+    agg.value += Number(r['Value In Lacs']) || 0;
+    agg.pts += Number(r.Pnts) || 0;
+  }
+  const gstinsOnPage = new Set(ROWS.map(r => r.gstin));
+  const matched = [], unmatched = [];
+  for (const agg of byGst.values()) {
+    const corrected = RSM_CORRECTIONS[agg.rawGstin];
+    const effective = corrected !== undefined ? corrected : agg.rawGstin;
+    if (effective === null) continue;
+    if (gstinsOnPage.has(effective)) matched.push({ ...agg, matchedGstin: effective });
+    else unmatched.push(agg);
+  }
+  RSM_MATCH_RESULT = { matched, unmatched, fy, branch };
+  renderRsmResults();
+}
+
+function renderRsmResults() {
+  const { matched, unmatched } = RSM_MATCH_RESULT;
+  document.getElementById('rsmResultsRow').classList.remove('hidden');
+  document.getElementById('rsmMatchedPill').textContent = matched.length.toLocaleString() + ' matched';
+  const uPill = document.getElementById('rsmUnmatchedPill');
+  if (unmatched.length > 0) {
+    uPill.textContent = unmatched.length.toLocaleString() + ' unmatched';
+    uPill.classList.remove('hidden');
+    document.getElementById('rsmUnmatchedSection').classList.remove('hidden');
+    renderRsmUnmatchedTable();
+  } else {
+    uPill.classList.add('hidden');
+    document.getElementById('rsmUnmatchedSection').classList.add('hidden');
+  }
+}
+
+function renderRsmUnmatchedTable() {
+  const { unmatched } = RSM_MATCH_RESULT;
+  document.querySelector('#rsmUnmatchedTable thead').innerHTML =
+    '<tr><th>GSTIN (as in file)</th><th class="num">Qty</th><th>Search &amp; correct</th><th></th></tr>';
+  document.querySelector('#rsmUnmatchedTable tbody').innerHTML = unmatched.map((u, i) =>
+    '<tr id="rsmU-'+i+'"><td>'+escapeHtml(u.rawGstin)+'</td><td class="num">'+fmt(u.qty)+'</td>'+
+    '<td style="position:relative"><input type="text" data-idx="'+i+'" class="rsmCorrSearch" placeholder="Search account name...">'+
+    '<div class="rsm-search-results hidden" id="rsmSearchResults-'+i+'"></div></td>'+
+    '<td><button style="font-size:11px;padding:3px 8px" onclick="excludeRsmUnmatched('+i+')">No match</button></td></tr>'
+  ).join('');
+  document.querySelectorAll('.rsmCorrSearch').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = Number(e.target.dataset.idx);
+      const q = e.target.value;
+      const resEl = document.getElementById('rsmSearchResults-' + idx);
+      if (q.length < 2) { resEl.classList.add('hidden'); return; }
+      const seen = new Set();
+      const cands = ROWS.filter(r => {
+        if (seen.has(r.gstin)) return false;
+        seen.add(r.gstin);
+        return r.gstin && r.gstin.toUpperCase().includes(q.toUpperCase());
+      }).slice(0, 8);
+      // also search by nothing else available client-side except gstin itself here;
+      // this dashboard's ROWS don't carry a display name field, so match on gstin text
+      resEl.innerHTML = cands.length
+        ? cands.map(c => '<div onclick="applyRsmCorrection('+idx+',&quot;'+c.gstin+'&quot;)">'+c.gstin+' &mdash; '+escapeHtml(c.segment)+', '+escapeHtml(c.district||'')+'</div>').join('')
+        : '<div style="color:var(--ink-soft)">No matches</div>';
+      resEl.classList.remove('hidden');
+    });
+  });
+}
+
+function applyRsmCorrection(idx, correctGstin) {
+  const u = RSM_MATCH_RESULT.unmatched[idx];
+  RSM_CORRECTIONS[u.rawGstin] = correctGstin;
+  saveRsmCorrections();
+  runRsmMatching();
+}
+function excludeRsmUnmatched(idx) {
+  const u = RSM_MATCH_RESULT.unmatched[idx];
+  RSM_CORRECTIONS[u.rawGstin] = null;
+  saveRsmCorrections();
+  runRsmMatching();
+}
+async function saveRsmCorrections() {
+  if (!RSM_DB) return;
+  try { await RSM_DB.doc('rsm_refresh/corrections').set({ map: RSM_CORRECTIONS }); } catch (e) {}
+}
+
+function applyRsmAccounts(accounts, doRender) {
+  const byGst = new Map(accounts.map(a => [a.gstin, a.qty]));
+  ROWS.forEach(r => { if (byGst.has(r.gstin)) r.rsmSaleQty = byGst.get(r.gstin); });
+  if (doRender !== false) render();
+}
+
+async function applyRsmRefresh() {
+  if (!RSM_MATCH_RESULT) return;
+  const accounts = RSM_MATCH_RESULT.matched.map(m => ({ gstin: m.matchedGstin, qty: m.qty }));
+  applyRsmAccounts(accounts, true);
+  const note = accounts.length.toLocaleString() + ' accounts refreshed (FY ' + RSM_MATCH_RESULT.fy + ') at ' + new Date().toLocaleString();
+  document.getElementById('rsmAppliedNote').textContent = note;
+  if (RSM_DB) {
+    try {
+      await RSM_DB.doc('rsm_refresh/latest').set({ accounts, fyLabel: RSM_MATCH_RESULT.fy, appliedAt: Date.now() });
+    } catch (e) {}
+  }
+}
+
+function resetRsmRefresh() {
+  ROWS.forEach(r => { if (BASELINE_RSM.has(r.gstin)) r.rsmSaleQty = BASELINE_RSM.get(r.gstin); });
+  render();
+  document.getElementById('rsmAppliedNote').textContent = 'Reset to original workbook data.';
+  if (RSM_DB) { try { RSM_DB.doc('rsm_refresh/latest').delete(); } catch (e) {} }
 }
 
 init();
