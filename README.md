@@ -226,6 +226,18 @@ zone's centre, sized by new-lead count), so both the locality-level (per-account
 (per-SO) pipeline views are genuinely functional side by side, clearly distinguished by color and
 by what each actually measures.
 
+**A rendering bug found and fixed after publishing:** the leads layer was being drawn correctly
+but was invisible in practice - Leaflet renders its div-icon labels (the "High value" / "Medium
+value" pill badges) in a pane that sits above circle markers by default, regardless of layer add
+order. Since every labelled Hotspot locality places its label at the exact same coordinate as any
+circleMarker there, the opaque label badge was sitting directly on top of the smaller purple leads
+markers underneath, hiding them completely - most visibly at exactly the highest-lead-volume
+localities (Adajan, Bhatar, Satellite, Sola), since those are the ones with Hotspot labels. Fixed
+by giving Focus and Leads markers their own pane above the label pane, confirmed at the correct
+z-index. This is a real limitation of testing without a live browser: the underlying data and
+layer logic were correct and passed every check, but a Leaflet-specific rendering interaction only
+shows up with the library actually loaded and painting pixels, which this sandbox cannot do.
+
 ## Updating the data
 
 Edit `Gujarat_Summary_Data.xlsx`'s "Detailed Sheet" tab directly (or the

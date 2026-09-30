@@ -74,6 +74,15 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   {maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 
 let MODE = 'hotspot'; // 'hotspot' | 'income'
+// Leaflet renders div-icon markers (used for the Hotspot/Income value labels) in the default
+// markerPane (z-index 600), which sits ABOVE the default overlayPane (z-index 400) used by
+// circle/circleMarker shapes - regardless of the order layers are added. Since every labelled
+// Hotspot locality places its label at the exact same coordinate as any circleMarker there,
+// the opaque label badge was sitting on top of and hiding the smaller Focus/Leads markers
+// underneath. Fix: give Focus and Leads their own pane above markerPane so they're never hidden.
+map.createPane('accountMarkers');
+map.getPane('accountMarkers').style.zIndex = 650;
+
 const layers = {
   High:  L.layerGroup().addTo(map),
   Medium:L.layerGroup().addTo(map),
@@ -157,13 +166,13 @@ function drawMarkers() {
     }
     if (d.focus > 0) {
       const fc = L.circleMarker([d.lat, d.lng], {radius:Math.max(4, Math.sqrt(d.focus)*2.1),
-        color:'#1E3A8A', weight:1, fillColor:'#1D4ED8', fillOpacity:.85})
+        color:'#1E3A8A', weight:1, fillColor:'#1D4ED8', fillOpacity:.85, pane:'accountMarkers'})
         .bindPopup(popup(d)).addTo(layers.Focus);
       circleLayers.push(fc);
     }
     if (d.leads > 0) {
       const lc = L.circleMarker([d.lat, d.lng], {radius:Math.max(5, Math.sqrt(d.leads)*1.8),
-        color:'#4C1D63', weight:1.5, fillColor:'#7C2D92', fillOpacity:.55})
+        color:'#4C1D63', weight:1.5, fillColor:'#7C2D92', fillOpacity:.55, pane:'accountMarkers'})
         .bindPopup(popup(d)).addTo(layers.Leads);
       circleLayers.push(lc);
     }
